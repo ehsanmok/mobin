@@ -236,10 +236,10 @@ SQLite WAL mode handles concurrent reads well at these concurrency levels. Write
 | **XSS** | ✅ Safe | Frontend uses `textContent` / `esc()` helper — no `innerHTML` on user data |
 | **Path traversal** | ✅ Safe | No filesystem access based on user input |
 | **CORS** | ✅ Present | `Access-Control-Allow-Origin: *` on all responses |
-| **Authentication / authorisation** | ❌ None | Any client can DELETE any paste by UUID |
-| **Rate limiting** | ❌ None | No per-IP throttling; rely on reverse-proxy or WAF |
-| **Null bytes in content** | ⚠️ Stored | `\x00` bytes in content are stored and returned as JSON `\u0000` — may cause issues with downstream consumers |
-| **HTTPS / TLS** | ❌ Dev only | TLS termination must be handled by a reverse proxy in production |
+| **Authentication / authorisation** | ✅ Delete token | `POST /paste` returns a one-time `delete_token`; `DELETE /paste/:id` requires `X-Delete-Token` header — returns `401` if missing, `403` if wrong |
+| **Rate limiting** | ✅ Via Caddy | `Caddyfile` ships with commented `rate_limit` block (requires caddy-ratelimit plugin); uncomment after `xcaddy build --with github.com/mholt/caddy-ratelimit` |
+| **Null bytes in content** | ✅ Rejected | Content containing `\x00` bytes returns `400 Bad Request` |
+| **HTTPS / TLS** | ✅ Via Caddy | `docker-compose.prod.yml` includes a Caddy service that auto-provisions Let's Encrypt certs; edit `Caddyfile` to set your domain |
 
 ---
 

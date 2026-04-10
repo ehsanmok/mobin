@@ -44,7 +44,8 @@ def _row_to_paste(stmt: Statement) raises -> Optional[Paste]:
 def init_db(db: Database) raises:
     """Create the pastes table and enable WAL journal mode.
 
-    Idempotent — safe to call on every startup.
+    Idempotent — safe to call on every startup. Automatically migrates
+    existing databases by adding new columns if they are missing.
 
     Args:
         db: Open SQLite database connection to initialize.
@@ -63,7 +64,8 @@ def init_db(db: Database) raises:
         "  language TEXT NOT NULL DEFAULT 'plain',"
         "  created_at INTEGER NOT NULL,"
         "  expires_at INTEGER NOT NULL,"
-        "  views INTEGER NOT NULL DEFAULT 0"
+        "  views INTEGER NOT NULL DEFAULT 0,"
+        "  delete_token TEXT NOT NULL DEFAULT ''"
         ")"
     )
     db.execute(
@@ -72,21 +74,34 @@ def init_db(db: Database) raises:
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_pastes_expires ON pastes(expires_at)"
     )
+    # Migration: add delete_token column to databases created before this
+    # column existed. SQLite errors if the column already exists, so we
+    # swallow that error and treat it as a no-op.
+    try:
+        db.execute(
+            "ALTER TABLE pastes ADD COLUMN delete_token TEXT NOT NULL DEFAULT ''"
+        )
+    except:
+        pass  # column already present — nothing to do
 
 
-def db_create(db: Database, paste: Paste) raises:
+def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     """Insert a new Paste into the database.
 
     Args:
-        db:    Open SQLite database connection.
-        paste: The Paste to insert (id must be unique).
+        db:           Open SQLite database connection.
+        paste:        The Paste to insert (id must be unique).
+        delete_token: Unguessable token required to delete this paste.
+                      Defaults to "" (no token required) for test
+                      convenience; production callers should always supply
+                      a UUID-strength token.
 
     Raises:
         Error: On UNIQUE constraint violation or other SQLite error.
     """
     var stmt = db.prepare(
         "INSERT INTO pastes (id, title, content, language, created_at,"
-        " expires_at, views) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        " expires_at, views, delete_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
     stmt.bind_text(1, paste.id)
     stmt.bind_text(2, paste.title)
@@ -95,7 +110,32 @@ def db_create(db: Database, paste: Paste) raises:
     stmt.bind_int(5, paste.created_at)
     stmt.bind_int(6, paste.expires_at)
     stmt.bind_int(7, paste.views)
+    stmt.bind_text(8, delete_token)
     _ = stmt.step()
+
+
+def db_check_token(db: Database, paste_id: String, token: String) raises -> Bool:
+    """Check whether a delete token matches the stored token for a paste.
+
+    Args:
+        db:       Open SQLite database connection.
+        paste_id: UUID string of the paste.
+        token:    Token to validate against the stored delete_token.
+
+    Returns:
+        True if the token matches (or if no token was set — empty string
+        matches empty string), False otherwise.
+
+    Raises:
+        Error: On SQLite error.
+    """
+    var stmt = db.prepare(
+        "SELECT 1 FROM pastes WHERE id = ? AND delete_token = ?"
+    )
+    stmt.bind_text(1, paste_id)
+    stmt.bind_text(2, token)
+    var row_opt = stmt.step()
+    return Bool(row_opt)
 
 
 def db_get(db: Database, paste_id: String) raises -> Optional[Paste]:

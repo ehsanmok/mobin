@@ -51,6 +51,29 @@ services:
           cpus: "1.0"
           memory: "512M"   # Mojo JIT needs headroom at startup
 
+  # ── Caddy reverse proxy (TLS + security headers) ──────────────────────────
+  # Caddy terminates TLS automatically via Let's Encrypt.
+  # Edit Caddyfile to set your domain and (optionally) enable rate limiting.
+  caddy:
+    image: caddy:2-alpine
+    container_name: mobin-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   mobin-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
     driver: local

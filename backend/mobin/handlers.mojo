@@ -8,10 +8,12 @@ struct serialization/deserialization.
 from flare.http import Request, Response, Status
 from sqlite import Database
 from morph.json import write, read
+from uuid import uuid4
 from .models import Paste, PasteStats, ServerConfig, new_paste
 from .db import (
     db_create,
     db_get,
+    db_check_token,
     db_inc_views,
     db_delete,
     db_list,
@@ -181,12 +183,33 @@ def create_paste_handler(
     if cr.content.byte_length() > cfg.max_size:
         return error_response(Status.CONTENT_TOO_LARGE, "content too large")
 
+    # Reject null bytes — they are legal in JSON (\u0000) but cause silent
+    # truncation in downstream C string handling and most text editors.
+    var content_bytes = cr.content.as_bytes()
+    for i in range(cr.content.byte_length()):
+        if content_bytes[i] == 0:
+            return error_response(
+                Status.BAD_REQUEST, "content must not contain null bytes"
+            )
+
     var ttl = cr.ttl_days if cr.ttl_days > 0 else cfg.ttl_days
     ttl = min(ttl, 365)
 
     var paste = new_paste(cr.title, cr.content, cr.language, ttl)
-    db_create(db, paste)
-    return json_response(Status.OK, _paste_to_json(paste))
+    # Generate an unguessable delete token — returned once at create time
+    # and stored in the DB. Required as X-Delete-Token header to delete.
+    var delete_token = String(uuid4())
+    db_create(db, paste, delete_token)
+
+    # Append delete_token to the response JSON. It is intentionally omitted
+    # from GET/LIST responses so it is only ever visible to the creator.
+    var paste_json = _paste_to_json(paste)
+    var n = paste_json.byte_length()
+    var response_json = (
+        String(unsafe_from_utf8=paste_json.as_bytes()[:n-1])
+        + ',"delete_token":"' + delete_token + '"}'
+    )
+    return json_response(Status.OK, response_json)
 
 
 def get_paste_handler(
@@ -218,19 +241,30 @@ def delete_paste_handler(
 ) raises -> Response:
     """Handle DELETE /paste/{id} — remove a paste.
 
+    Requires the ``X-Delete-Token`` header containing the token that was
+    returned when the paste was created. Returns 401 if the header is
+    missing, 403 if the token is present but incorrect, 404 if the paste
+    does not exist.
+
     Args:
-        req:      HTTP request (unused beyond routing).
+        req:      HTTP request — must carry X-Delete-Token header.
         db:       Open database connection.
         paste_id: UUID string of the paste to delete.
 
     Returns:
-        200 OK on success, 404 Not Found if paste does not exist.
+        200 OK on success, or an appropriate error response.
     """
-    print("[delete] paste_id bytes=" + String(paste_id.byte_length()) + " id=" + paste_id)
+    var token = req.headers.get("X-Delete-Token")
+    if token == "":
+        return error_response(Status.UNAUTHORIZED, "X-Delete-Token header required")
+
     var paste_opt = db_get(db, paste_id)
     if not paste_opt:
-        print("[delete] db_get returned None")
         return error_response(Status.NOT_FOUND, "paste not found")
+
+    if not db_check_token(db, paste_id, token):
+        return error_response(Status.FORBIDDEN, "invalid delete token")
+
     db_delete(db, paste_id)
     return json_response(Status.OK, '{"deleted":true}')
 

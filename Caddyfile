@@ -1,0 +1,66 @@
+# mobin Caddyfile
+#
+# Usage (with docker-compose.prod.yml Caddy service):
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Usage (standalone on a VPS with Caddy installed):
+#   caddy run --config Caddyfile
+#
+# TLS is handled automatically via Let's Encrypt when a real domain is used.
+# For local testing, replace the domain with `:80` or `localhost`.
+#
+# Rate limiting requires the caddy-ratelimit plugin:
+#   xcaddy build --with github.com/mholt/caddy-ratelimit
+# See: https://github.com/mholt/caddy-ratelimit
+
+{
+    # Uncomment to use a custom ACME CA (e.g. for staging):
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# Replace mobin.example.com with your domain.
+# Caddy obtains and renews TLS certificates automatically.
+mobin.example.com {
+    # ── Rate limiting ────────────────────────────────────────────────────
+    # Requires caddy-ratelimit plugin (see header comment).
+    # Uncomment once the plugin is compiled in:
+    #
+    # rate_limit {
+    #     zone api {
+    #         match {
+    #             path /paste /paste/*
+    #             method POST DELETE
+    #         }
+    #         key     {remote_host}
+    #         events  20
+    #         window  60s
+    #     }
+    # }
+
+    # ── Security headers ─────────────────────────────────────────────────
+    header {
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        X-XSS-Protection          "1; mode=block"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        # Remove Caddy's Server header to avoid fingerprinting.
+        -Server
+    }
+
+    # ── Payload size limit ───────────────────────────────────────────────
+    # Mirrors the backend's MAX_SIZE (65536 bytes) plus JSON overhead.
+    request_body {
+        max_size 2MB
+    }
+
+    # ── Reverse proxy ────────────────────────────────────────────────────
+    # Route WebSocket upgrade requests to the WS server.
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade    websocket
+    }
+    reverse_proxy @websocket backend:8081
+
+    # All other traffic → HTTP API.
+    reverse_proxy backend:8080
+}

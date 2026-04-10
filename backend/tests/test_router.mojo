@@ -46,8 +46,12 @@ def _post(path: String, body: String) raises -> Request:
     return r^
 
 
-def _delete(path: String) raises -> Request:
-    return Request(method=Method.DELETE, url=path)
+def _delete(path: String, token: String = "") raises -> Request:
+    """Build a DELETE request, optionally with an X-Delete-Token header."""
+    var r = Request(method=Method.DELETE, url=path)
+    if token != "":
+        r.headers.set("X-Delete-Token", token)
+    return r^
 
 
 def _body_str(resp: Response) -> String:
@@ -150,19 +154,39 @@ def test_get_nonexistent_paste() raises:
     assert_equal(resp.status, Status.NOT_FOUND)
 
 
+def _extract_field(body: String, field: String) raises -> String:
+    """Extract a JSON string field value from a flat JSON object body."""
+    var key = '"' + field + '":"'
+    var start = body.find(key)
+    if start < 0:
+        return ""
+    start += key.byte_length()
+    var end = body.find('"', start)
+    if end < 0:
+        return ""
+    return String(unsafe_from_utf8=body.as_bytes()[start:end])
+
+
 def test_delete_paste() raises:
-    """DELETE /paste/{id} removes the paste; subsequent GET returns 404."""
+    """Checks DELETE /paste/{id} with correct token removes paste; subsequent GET returns 404."""
     var db = _open_db()
     var cfg = _cfg()
 
     var create_body = '{"title":"T","content":"x","language":"plain","ttl":7}'
     var create_resp = router(_post("/paste", create_body), db, cfg)
-    var create_body_str = _body_str(create_resp)
-    var id_start = create_body_str.find('"id":"') + 6
-    var id_end = create_body_str.find('"', id_start)
-    var paste_id = String(unsafe_from_utf8=create_body_str.as_bytes()[id_start:id_end])
+    var resp_str = _body_str(create_resp)
+    var paste_id    = _extract_field(resp_str, "id")
+    var delete_token = _extract_field(resp_str, "delete_token")
 
-    var del_resp = router(_delete("/paste/" + paste_id), db, cfg)
+    # Wrong / missing token → 401 / 403
+    var no_token_resp = router(_delete("/paste/" + paste_id), db, cfg)
+    assert_equal(no_token_resp.status, Status.UNAUTHORIZED)
+
+    var wrong_token_resp = router(_delete("/paste/" + paste_id, "bad-token"), db, cfg)
+    assert_equal(wrong_token_resp.status, Status.FORBIDDEN)
+
+    # Correct token → 200 + subsequent GET → 404
+    var del_resp = router(_delete("/paste/" + paste_id, delete_token), db, cfg)
     assert_equal(del_resp.status, Status.OK)
 
     var get_resp = router(_get("/paste/" + paste_id), db, cfg)
