@@ -84,12 +84,31 @@ struct ServerConfig(Defaultable, Movable):
     var ttl_days: Int
 
     def __init__(out self):
-        self.host = "0.0.0.0"
-        self.port = 8080
-        self.ws_port = 8081
-        self.db_path = "data/mobin.db"
-        self.max_size = 65536
-        self.ttl_days = 30
+        """Initialise from environment variables with hard-coded fallbacks.
+
+        Reads PORT, WS_PORT, DB_PATH, MAX_SIZE, TTL_DAYS, HOST from the
+        environment. Any env var that is absent or non-numeric silently falls
+        back to the default so that ServerConfig() satisfies Defaultable.
+        """
+        from std.os import getenv
+        self.host    = getenv("HOST",    "0.0.0.0")
+        self.db_path = getenv("DB_PATH", "data/mobin.db")
+        try:
+            self.port     = Int(getenv("PORT",     "8080"))
+        except:
+            self.port     = 8080
+        try:
+            self.ws_port  = Int(getenv("WS_PORT",  "8081"))
+        except:
+            self.ws_port  = 8081
+        try:
+            self.max_size = Int(getenv("MAX_SIZE", "65536"))
+        except:
+            self.max_size = 65536
+        try:
+            self.ttl_days = Int(getenv("TTL_DAYS", "30"))
+        except:
+            self.ttl_days = 30
 
 
 def new_paste(

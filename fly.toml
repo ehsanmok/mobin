@@ -1,0 +1,66 @@
+# fly.toml — mobin on Fly.io
+# Deploy:  fly launch --no-deploy  (first time, creates app + provisions volume)
+#          fly volumes create mobin_data --size 1 --region ord
+#          fly deploy
+# Update:  fly deploy
+# Logs:    fly logs
+# SSH:     fly ssh console
+
+app    = "mobin"
+primary_region = "ord"   # Chicago — change to your nearest region
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT     = "8080"
+  WS_PORT  = "8081"
+  DB_PATH  = "/data/mobin.db"
+  TTL_DAYS = "30"
+  MAX_SIZE = "65536"
+
+# HTTP server
+[[services]]
+  internal_port = 8080
+  protocol      = "tcp"
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[services.http_checks]]
+    interval      = "15s"
+    timeout       = "5s"
+    grace_period  = "30s"   # give Mojo JIT time to warm up
+    method        = "GET"
+    path          = "/health"
+
+# WebSocket feed — separate TCP listener (no TLS termination; clients use ws://)
+# To support wss:// upgrade to a paid plan or put Cloudflare in front.
+[[services]]
+  internal_port = 8081
+  protocol      = "tcp"
+
+  [[services.ports]]
+    port     = 8081
+    handlers = ["tcp"]
+
+[mounts]
+  source      = "mobin_data"
+  destination = "/data"
+
+# Minimum viable VM: shared-cpu-1x with 512 MB RAM.
+# 256 MB is too tight for the Mojo JIT cold start.
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

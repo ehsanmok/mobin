@@ -1,13 +1,10 @@
-version: "3.9"
-
-# Production compose: backend only (serves both API and embedded HTML)
-# No Nginx container — backend serves static HTML from mobin/static.mojo
+# Production compose: backend only (no Nginx, no Locust).
+# The backend serves embedded HTML from static.mojo directly.
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Scale reads with a reverse proxy in front of this on port 8080.
-# WebSocket (port 8081) can be load-balanced separately if needed.
+# Reverse-proxy this with Caddy/Nginx/Traefik on the host for TLS.
 
 services:
   backend:
@@ -18,29 +15,27 @@ services:
     container_name: mobin-backend-prod
     restart: always
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "8080:8080"   # HTTP REST API + embedded frontend
+      - "8081:8081"   # WebSocket live feed
     environment:
-      MOBIN__HOST: "0.0.0.0"
-      MOBIN__PORT: "8080"
-      MOBIN__WS_PORT: "8081"
-      MOBIN__DB_PATH: "/data/mobin.db"
-      MOBIN__TTL_DAYS: "30"
-      MOBIN__MAX_SIZE: "65536"
+      PORT:     "8080"
+      WS_PORT:  "8081"
+      DB_PATH:  "/app/data/mobin.db"
+      TTL_DAYS: "30"
+      MAX_SIZE: "65536"
     volumes:
-      # Named volume — survives container restarts and updates
-      - mobin-data:/data
+      - mobin-data:/app/data   # persistent SQLite WAL database
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: "256M"
+          memory: "512M"   # Mojo JIT needs headroom at startup
 
 volumes:
   mobin-data:
