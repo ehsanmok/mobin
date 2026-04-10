@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Development compose: backend + frontend + locust web UI
 # Usage:
 #   docker compose up --build
