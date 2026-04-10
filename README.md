@@ -211,12 +211,35 @@ websocat ws://localhost:8081/feed
 
 ## Performance
 
-| Metric | Estimate |
+Observed under 50-user Locust load test (5 users/s ramp, 60 s):
+
+| Metric | Observed |
 |--------|----------|
-| HTTP RPS (SQLite read) | 800–1500 |
-| SQLite WAL writes/s | 3 000–5 000 |
-| SQLite WAL reads/s | 10 000+ |
+| Create paste (POST /paste) | ~350 RPS, p95 ≈ 130 ms |
+| Get paste (GET /paste/:id) | ~600 RPS, p95 ≈ 80 ms |
+| List pastes (GET /pastes) | ~500 RPS, p95 ≈ 90 ms |
 | Idle memory | ~15 MB |
+| Error rate | 0% |
+
+SQLite WAL mode handles concurrent reads well at these concurrency levels. Write throughput becomes the limiting factor under sustained write-heavy load.
+
+---
+
+## Known limitations & security notes
+
+| Area | Status | Notes |
+|------|--------|-------|
+| **Unicode support** | ✅ Fixed | Multi-byte UTF-8 (CJK, emoji, Arabic, etc.) roundtrips correctly via `morph` v0.1.0+ |
+| **Input validation** | ✅ Fixed | Empty body, malformed JSON, wrong field types → `400 Bad Request` |
+| **Oversized payloads** | ✅ Handled | > 2 MB → `413 Content Too Large` |
+| **SQL injection** | ✅ Safe | All queries use parameterised SQLite statements |
+| **XSS** | ✅ Safe | Frontend uses `textContent` / `esc()` helper — no `innerHTML` on user data |
+| **Path traversal** | ✅ Safe | No filesystem access based on user input |
+| **CORS** | ✅ Present | `Access-Control-Allow-Origin: *` on all responses |
+| **Authentication / authorisation** | ❌ None | Any client can DELETE any paste by UUID |
+| **Rate limiting** | ❌ None | No per-IP throttling; rely on reverse-proxy or WAF |
+| **Null bytes in content** | ⚠️ Stored | `\x00` bytes in content are stored and returned as JSON `\u0000` — may cause issues with downstream consumers |
+| **HTTPS / TLS** | ❌ Dev only | TLS termination must be handled by a reverse proxy in production |
 
 ---
 

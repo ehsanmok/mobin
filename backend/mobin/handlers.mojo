@@ -158,19 +158,23 @@ def create_paste_handler(
         cfg: Server configuration (max_size, ttl_days).
 
     Returns:
-        201 Created with {"id":"...","url":"/paste/...","expires_at":...}
+        200 OK with the full paste JSON object,
         or an error response on validation failure.
     """
+    if len(req.body) == 0:
+        return error_response(Status.BAD_REQUEST, "request body is required")
+
     var raw = List[UInt8](capacity=len(req.body) + 1)
     for b in req.body:
         raw.append(b)
     raw.append(0)
     var body = String(unsafe_from_utf8=raw)
 
-    if body.byte_length() == 0:
-        return error_response(Status.BAD_REQUEST, "request body is required")
-
-    var cr = read[CreateRequest, default_if_missing=True](body)
+    var cr: CreateRequest
+    try:
+        cr = read[CreateRequest, default_if_missing=True](body)
+    except e:
+        return error_response(Status.BAD_REQUEST, "invalid JSON: " + String(e))
 
     if cr.content.byte_length() == 0:
         return error_response(Status.BAD_REQUEST, "content is required")
