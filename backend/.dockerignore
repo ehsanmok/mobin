@@ -1,6 +1,9 @@
 # Pixi environment — rebuilt inside Docker via `pixi install`
 .pixi/
 
+# SQLite database — populated at runtime, must not be baked into the image
+data/
+
 # Compiled binary — rebuilt inside Docker via `pixi run build`
 mobin-backend
 

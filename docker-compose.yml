@@ -16,12 +16,11 @@ services:
       - "8080:8080"   # HTTP API
       - "8081:8081"   # WebSocket feed
     environment:
-      MOBIN__HOST: "0.0.0.0"
-      MOBIN__PORT: "8080"
-      MOBIN__WS_PORT: "8081"
-      MOBIN__DB_PATH: "/data/mobin.db"
+      PORT: "8080"
+      WS_PORT: "8081"
+      DB_PATH: "/app/data/mobin.db"
     volumes:
-      - backend-data:/data
+      - backend-data:/app/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s
