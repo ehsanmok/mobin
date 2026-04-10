@@ -236,6 +236,192 @@ SQLite WAL mode handles concurrent reads well at these concurrency levels. Write
 
 ---
 
+## Known limitations and future improvements
+
+### Service / feature gaps
+
+| Area | Gap | Effort |
+|------|-----|--------|
+| **Authentication** | All pastes are public; no user accounts or private pastes | High |
+| **Paste editing** | No `PUT /paste/{id}` endpoint; pastes are immutable | Low |
+| **Expiry enforcement** | Expired rows stay in the DB until the next read; no background sweep | Low — add a cleanup job in the WS idle loop |
+| **WS child death** | If the WS child exhausts its 10 retries the live feed goes silent without alerting the user | Medium — restart the whole process or expose a `/ws/health` probe |
+| **Single-region SQLite** | SQLite gives one writer; horizontal scaling needs a different DB | High — would require Turso/libSQL or Postgres |
+| **No pagination cursor** | `GET /pastes?offset=N` is offset-based; skips under concurrent inserts | Low — switch to `WHERE id < last_seen` keyset pagination |
+| **No paste search** | Full-text search over content not supported | Medium — SQLite FTS5 extension |
+| **Rate limiting coarse** | Caddy rate-limits by IP; no per-paste-creator limits | Medium |
+
+### Mojo DX friction (things the language/libs should fix)
+
+These are not bugs — the service is correct — but each required a workaround that
+Python would express in one line. They are useful upstream bug reports / feature
+requests for the Mojo ecosystem.
+
+#### 1 — `String` byte-range slicing requires `unsafe`
+
+**Today** — every substring by byte index uses the `unsafe_from_utf8=` escape hatch:
+
+```mojo
+# router.mojo — strip the "/paste/" prefix
+var paste_id = String(unsafe_from_utf8=path.as_bytes()[_PREFIX.byte_length():])
+
+# handlers.mojo — parse a query-string value
+val_str = String(unsafe_from_utf8=query.as_bytes()[start:end])
+
+# morph — forward raw UTF-8 continuation bytes  
+out += String(unsafe_from_utf8=data[i : i + seq_len])
+```
+
+**Python equivalent:**
+
+```python
+paste_id = path[len(PREFIX):]
+val_str  = query[start:end]
+```
+
+**Fix needed in stdlib:** `String.__getitem__(Slice) -> String` that trusts the
+caller's byte slice (since `as_bytes()` is already byte-level). No `unsafe` name
+should be required for standard slicing.
+
+---
+
+#### 2 — `Request.body` is `List[UInt8]`, not `String`
+
+**Today** — every HTTP handler must manually copy the byte list and null-terminate
+before JSON parsing:
+
+```mojo
+# handlers.mojo — 6 lines to decode a request body
+var raw = List[UInt8](capacity=len(req.body) + 1)
+for b in req.body:
+    raw.append(b)
+raw.append(0)
+var body = String(unsafe_from_utf8=raw)
+```
+
+**Python / Go equivalent:**
+
+```python
+body = request.get_data(as_text=True)   # Flask
+body = await request.text()             # aiohttp
+```
+
+**Fix needed in `flare`:** `Request.text() -> String` (UTF-8 decode of the body),
+keeping `Request.body` as `Span[UInt8]` for binary handlers.
+
+---
+
+#### 3 — No way to add ad-hoc fields to `morph.write()` output
+
+`morph.write(paste)` reflects the struct and serialises all fields. The `delete_token`
+field must not appear in `GET` responses but must appear once in the `POST` response.
+Because `morph` has no way to inject extra fields, the handler surgically removes the
+closing `}` and appends the field manually:
+
+```mojo
+# handlers.mojo — brittle JSON surgery
+var n = paste_json.byte_length()
+var response_json = (
+    String(unsafe_from_utf8=paste_json.as_bytes()[:n-1])
+    + ',"delete_token":"' + delete_token + '"}'
+)
+```
+
+**Python equivalent:**
+
+```python
+d = dataclasses.asdict(paste)
+d["delete_token"] = token
+return json.dumps(d)
+```
+
+**Fix needed in `morph`:** `write_with(obj, extra: Dict[String, String])` or a
+`@skip_serialise` field attribute to mark `delete_token` as excluded from normal
+output while still accessible for selective inclusion.
+
+---
+
+#### 4 — `fork()`, `sleep()`, `kill()` need raw `external_call`
+
+**Today:**
+
+```mojo
+# main.mojo
+var pid = Int(external_call["fork", Int32]())
+_ = external_call["sleep", Int32](Int32(backoff))
+_ = external_call["kill", Int32](Int32(pid), Int32(15))
+```
+
+**Python equivalent:**
+
+```python
+pid = os.fork()
+time.sleep(backoff)
+os.kill(pid, signal.SIGTERM)
+```
+
+**Fix needed in `std.os.process`:** `fork() -> Int`, `sleep(seconds: Int)`, and
+`kill(pid: Int, sig: Int)` — basic POSIX wrappers that do not require reaching into
+the raw FFI layer.
+
+---
+
+#### 5 — `len(String)` deprecated; `byte_length()` vs character count confusion
+
+Mojo deprecated `len(s)` on `String`, replacing it with `s.byte_length()`. This is
+correct (Python's `len` on `str` is character count, not byte count), but the rename
+makes simple guards verbose and surprising for newcomers:
+
+```mojo
+# Must write this everywhere
+if s.byte_length() == 0: ...
+```
+
+**Suggestion:** Keep `len(s)` as an alias emitting a deprecation warning, and also add
+`s.char_len() -> Int` for true Unicode codepoint count once the stdlib supports it.
+
+---
+
+#### 6 — C-FFI `String → Int` pointer casting and keepalive boilerplate
+
+In `sqlite/ffi.mojo`, every string passed to a C function requires:
+
+```mojo
+var v = val                          # own a mutable copy
+var v_len = Int32(v.byte_length())
+var rc = self._fn_bind_text(
+    stmt, Int32(idx), Int(v.unsafe_ptr()), v_len, Int(-1)
+)
+_ = v^                               # explicit keepalive — without this the
+                                     # compiler may free v before the C call
+```
+
+**Python (cffi) equivalent:**
+
+```python
+lib.sqlite3_bind_text(stmt, idx, val.encode(), -1, SQLITE_TRANSIENT)
+```
+
+**Fix needed in stdlib:** A `String.with_c_ptr { |ptr, len| ... }` scoped helper (like
+Rust's `CString::as_ptr`) that guarantees the buffer is alive for the duration of the
+closure, eliminating both the manual copy and the `_ = v^` keepalive line.
+
+---
+
+### Summary table — `unsafe` usage and where it should go away
+
+| Location | `unsafe` pattern | Root cause | Fix target |
+|----------|-----------------|-----------|-----------|
+| `router.mojo` | `String(unsafe_from_utf8=path.as_bytes()[n:])` | No `String` slice | `stdlib` |
+| `handlers.mojo` | byte-copy loop + `unsafe_from_utf8=` for body | `Request.body` is `List[UInt8]` | `flare` |
+| `handlers.mojo` | JSON surgery to inject `delete_token` | `morph` can't add extra fields | `morph` |
+| `handlers.mojo` | `String(unsafe_from_utf8=query.as_bytes()[s:e])` | No `String` slice | `stdlib` |
+| `morph/value.mojo` | `String(unsafe_from_utf8=data[i:i+n])` (×6) | No `String` slice | `stdlib` |
+| `sqlite/ffi.mojo` | `Int(v.unsafe_ptr())` + `_ = v^` (×4) | No scoped C-string helper | `stdlib` |
+| `main.mojo` | `external_call["fork"]` / `sleep` / `kill` | Missing POSIX wrappers | `stdlib` |
+
+---
+
 ## Security
 
 | Area | Status | Notes |
@@ -343,15 +529,17 @@ Caddy obtains a free [Let's Encrypt](https://letsencrypt.org) certificate for yo
 
 Create an `A` record in your DNS provider pointing your domain (e.g. `mobin.yourdomain.com`) to your server's IP address. DNS changes typically propagate within a few minutes.
 
-**Step 2 — edit `Caddyfile`**
+**Step 2 — set your domain**
 
-Open `Caddyfile` and replace `mobin.example.com` with your actual domain:
+Set `CADDY_DOMAIN` in the environment before starting the stack (or edit the
+`CADDY_DOMAIN` line in `docker-compose.prod.yml`):
 
-```caddy
-mobin.yourdomain.com {
-    ...
-}
+```bash
+export CADDY_DOMAIN=mobin.yourdomain.com
 ```
+
+No edits to `Caddyfile` are needed — the file reads `CADDY_DOMAIN` automatically.
+If you leave it unset the default is `:80` (plain HTTP, useful for local testing).
 
 **Step 3 — start the stack**
 
