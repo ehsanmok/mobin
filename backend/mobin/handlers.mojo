@@ -9,6 +9,7 @@ from flare.http import Request, Response, Status
 from sqlite import Database
 from morph.json import write, read
 from uuid import uuid4
+from tempo import Timestamp
 from .models import Paste, PasteStats, ServerConfig, new_paste
 from .db import (
     db_create,
@@ -16,6 +17,7 @@ from .db import (
     db_check_token,
     db_inc_views,
     db_delete,
+    db_update,
     db_list,
     db_stats,
 )
@@ -45,6 +47,34 @@ struct CreateRequest(Defaultable, Movable):
         self.content = ""
         self.language = "plain"
         self.ttl_days = 7
+
+
+@fieldwise_init
+struct UpdateRequest(Defaultable, Movable):
+    """JSON body for PUT /paste/{id}.
+
+    All fields are optional: omitted fields (empty string / zero) preserve
+    the current value.  At least one of ``title``, ``content``, or
+    ``language`` should differ from the current value to be useful.
+
+    Fields:
+        title:    New title (unchanged if empty string).
+        content:  New paste body (unchanged if empty string).
+        language: New syntax-highlight hint (unchanged if empty string).
+        ttl_days: If > 0, reset the paste expiry to now + ttl_days days
+                  (capped at 365). If 0, keep the current expiry.
+    """
+
+    var title: String
+    var content: String
+    var language: String
+    var ttl_days: Int
+
+    def __init__(out self):
+        self.title = ""
+        self.content = ""
+        self.language = ""
+        self.ttl_days = 0
 
 
 # ── Response helpers ──────────────────────────────────────────────────────────
@@ -83,8 +113,8 @@ def json_response(status: Int, body: String) raises -> Response:
     var r = Response(status=status, reason="", body=_to_bytes(body))
     r.headers.set("Content-Type", "application/json; charset=utf-8")
     r.headers.set("Access-Control-Allow-Origin", "*")
-    r.headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-    r.headers.set("Access-Control-Allow-Headers", "Content-Type")
+    r.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+    r.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Delete-Token")
     return r^
 
 
@@ -267,28 +297,119 @@ def delete_paste_handler(
     return json_response(Status.OK, '{"deleted":true}')
 
 
+def update_paste_handler(
+    req: Request, db: Database, cfg: ServerConfig, paste_id: String
+) raises -> Response:
+    """Handle PUT /paste/{id} — update an existing paste.
+
+    Requires the ``X-Delete-Token`` header (the same token returned at
+    creation time).  All body fields are optional; omitted or empty-string
+    fields preserve the current value.
+
+    Args:
+        req:      HTTP request with optional JSON body fields.
+        db:       Open database connection.
+        cfg:      Server configuration (max_size).
+        paste_id: UUID string of the paste to update.
+
+    Returns:
+        200 OK with the updated Paste JSON, or an error response.
+    """
+    var token = req.headers.get("X-Delete-Token")
+    if token == "":
+        return error_response(Status.UNAUTHORIZED, "X-Delete-Token header required")
+
+    var paste_opt = db_get(db, paste_id)
+    if not paste_opt:
+        return error_response(Status.NOT_FOUND, "paste not found")
+
+    if not db_check_token(db, paste_id, token):
+        return error_response(Status.FORBIDDEN, "invalid delete token")
+
+    var current = paste_opt.take()
+
+    if len(req.body) == 0:
+        return error_response(Status.BAD_REQUEST, "request body is required")
+
+    var body = String(from_utf8_lossy=req.body)
+    var ur: UpdateRequest
+    try:
+        ur = read[UpdateRequest, default_if_missing=True](body)
+    except e:
+        return error_response(Status.BAD_REQUEST, "invalid JSON: " + String(e))
+
+    # Merge: keep current value for any field omitted (empty string) by the caller.
+    var new_title = ur.title if ur.title.byte_length() > 0 else current.title
+    var new_content = ur.content if ur.content.byte_length() > 0 else current.content
+    var new_language = ur.language if ur.language.byte_length() > 0 else current.language
+
+    if new_content.byte_length() == 0:
+        return error_response(Status.BAD_REQUEST, "content cannot be empty")
+    if new_content.byte_length() > cfg.max_size:
+        return error_response(Status.CONTENT_TOO_LARGE, "content too large")
+
+    # Reject null bytes in the new content.
+    var content_bytes = new_content.as_bytes()
+    for i in range(new_content.byte_length()):
+        if content_bytes[i] == 0:
+            return error_response(
+                Status.BAD_REQUEST, "content must not contain null bytes"
+            )
+
+    # Recompute expiry if caller explicitly requested a new TTL.
+    var new_expires_at = current.expires_at
+    if ur.ttl_days > 0:
+        var ttl = min(ur.ttl_days, 365)
+        new_expires_at = Int(Timestamp.now().unix_secs()) + ttl * 86400
+
+    db_update(db, paste_id, new_title, new_content, new_language, new_expires_at)
+
+    # Re-fetch the updated paste so the response reflects the DB state.
+    var updated_opt = db_get(db, paste_id)
+    if not updated_opt:
+        return error_response(500, "failed to retrieve updated paste")
+    return json_response(Status.OK, _paste_to_json(updated_opt.take()))
+
+
 def list_pastes_handler(
     req: Request, db: Database, query: String
 ) raises -> Response:
     """Handle GET /pastes — paginated list of recent non-expired pastes.
 
     Query parameters:
-        limit:  Number of results (default 20, max 100).
-        offset: Pagination offset (default 0).
+        limit:     Number of results (default 20, max 100).
+        offset:    Offset-based pagination offset (default 0).
+                   Ignored when ``before`` is provided.
+        before:    Keyset cursor — return only pastes older than this Unix
+                   timestamp. Stable under concurrent inserts; preferred over
+                   ``offset`` for production use.
+        q:         Substring search filter applied to title and content.
 
     Args:
         req:   HTTP request (unused beyond routing).
         db:    Open database connection.
-        query: URL query string, e.g. "limit=20&offset=0".
+        query: URL query string, e.g. "limit=20&offset=0&q=python".
 
     Returns:
-        200 OK with {"pastes":[...],"count":<n>}.
+        200 OK with {"pastes":[...],"count":<n>} and optionally
+        "next_before":<unix_ts> for keyset pagination continuation.
     """
     var limit = _parse_query_int(query, "limit", 20)
     var offset = _parse_query_int(query, "offset", 0)
-    var pastes = db_list(db, limit, offset)
+    var before_ts = _parse_query_int(query, "before", 0)
+    var search = _parse_query_str(query, "q")
+
+    var pastes = db_list(db, limit, offset, before_ts, search)
     var arr = _pastes_to_json_array(pastes)
-    var body = '{"pastes":' + arr + ',"count":' + String(len(pastes)) + "}"
+    var n = len(pastes)
+    var body = '{"pastes":' + arr + ',"count":' + String(n)
+
+    # When using keyset pagination, include the cursor for the next page.
+    # Absence of "next_before" signals that no more pages exist.
+    if before_ts > 0 and n == min(limit, 100):
+        body += ',"next_before":' + String(pastes[n - 1].created_at)
+
+    body += "}"
     return json_response(Status.OK, body)
 
 
@@ -344,3 +465,25 @@ def _parse_query_int(query: String, key: String, default_val: Int) -> Int:
         return Int(val_str)
     except:
         return default_val
+
+
+def _parse_query_str(query: String, key: String) -> String:
+    """Extract a string value from a URL query string.
+
+    Args:
+        query: Raw query string, e.g. "limit=20&q=hello+world".
+        key:   Parameter name to look up.
+
+    Returns:
+        Raw (not URL-decoded) string value, or "" if the key is missing.
+        Callers that need URL decoding should handle it themselves.
+    """
+    var search = key + "="
+    var idx = query.find(search)
+    if idx < 0:
+        return ""
+    var start = idx + search.byte_length()
+    var end = query.find("&", start)
+    if end < 0:
+        return String(from_utf8_lossy=query[byte=start:].as_bytes())
+    return String(from_utf8_lossy=query[byte=start:end].as_bytes())

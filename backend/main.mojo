@@ -37,6 +37,7 @@ from flare.net import SocketAddr
 from mobin import (
     ServerConfig,
     init_db,
+    db_purge_expired,
     router,
     feed_handler,
 )
@@ -102,6 +103,14 @@ def _init_schema(db_path: String) raises:
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=NORMAL")
     init_db(db)
+    # Purge any rows that expired while the service was down, so stale data
+    # is never served.  Errors are non-fatal: the service can still run.
+    try:
+        var purged = db_purge_expired(db)
+        if purged > 0:
+            print("startup: purged " + String(purged) + " expired paste(s)")
+    except:
+        pass
     # db goes out of scope → sqlite3_close() called automatically.
 
 

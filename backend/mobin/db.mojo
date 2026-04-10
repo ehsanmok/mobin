@@ -193,15 +193,97 @@ def db_delete(db: Database, paste_id: String) raises:
     _ = stmt.step()
 
 
+def db_update(
+    db: Database,
+    paste_id: String,
+    title: String,
+    content: String,
+    language: String,
+    expires_at: Int,
+) raises:
+    """Update a paste's mutable fields.
+
+    The caller is responsible for verifying the delete token before calling.
+    Only updates the paste if it has not yet expired.
+
+    Args:
+        db:         Open SQLite database connection.
+        paste_id:   UUID string of the paste to update.
+        title:      New title (caller merges with current if omitted by user).
+        content:    New content body.
+        language:   New syntax-highlight language hint.
+        expires_at: New expiry Unix timestamp (pass current value to keep).
+
+    Raises:
+        Error: On SQLite error.
+    """
+    var now = _now()
+    var stmt = db.prepare(
+        "UPDATE pastes SET title = ?, content = ?, language = ?, expires_at = ?"
+        " WHERE id = ? AND expires_at > ?"
+    )
+    stmt.bind_text(1, title)
+    stmt.bind_text(2, content)
+    stmt.bind_text(3, language)
+    stmt.bind_int(4, expires_at)
+    stmt.bind_text(5, paste_id)
+    stmt.bind_int(6, now)
+    _ = stmt.step()
+
+
+def db_purge_expired(db: Database) raises -> Int:
+    """Delete all expired pastes from the database.
+
+    Should be called periodically to prevent unbounded table growth.
+    Safe to call concurrently — uses a single atomic DELETE statement.
+
+    Args:
+        db: Open SQLite database connection.
+
+    Returns:
+        Number of rows deleted.
+
+    Raises:
+        Error: On SQLite error.
+    """
+    var now = _now()
+    var stmt = db.prepare("DELETE FROM pastes WHERE expires_at <= ?")
+    stmt.bind_int(1, now)
+    _ = stmt.step()
+    # SELECT changes() returns the count affected by the most recent DML statement.
+    var count_stmt = db.prepare("SELECT changes()")
+    var row_opt = count_stmt.step()
+    if not row_opt:
+        return 0
+    return row_opt.value().int_val(0)
+
+
 def db_list(
-    db: Database, limit: Int = 20, offset: Int = 0
+    db: Database,
+    limit: Int = 20,
+    offset: Int = 0,
+    before_ts: Int = 0,
+    search: String = "",
 ) raises -> List[Paste]:
     """Return a paginated list of non-expired pastes, newest first.
 
+    Supports two pagination modes:
+    - Offset-based (default): skip `offset` rows — stable only when no concurrent
+      inserts are happening. Use when `before_ts` is 0.
+    - Keyset cursor: pass `before_ts` > 0 to return only pastes with
+      created_at < before_ts. Stable under concurrent inserts; takes priority
+      over `offset` (offset is ignored when before_ts > 0).
+
+    Optionally filters rows by a substring matched (LIKE) against title and content.
+
     Args:
-        db:     Open SQLite database connection.
-        limit:  Maximum number of results (default 20, capped at 100).
-        offset: Number of rows to skip for pagination.
+        db:        Open SQLite database connection.
+        limit:     Maximum number of results (default 20, capped at 100).
+        offset:    Rows to skip — ignored when before_ts > 0.
+        before_ts: Keyset cursor; only return pastes with created_at < this
+                   Unix timestamp. Pass 0 (default) to disable.
+        search:    Case-insensitive substring filter applied to title and content.
+                   Pass "" (default) for no filtering.
 
     Returns:
         List of Paste objects ordered by creation time descending.
@@ -211,14 +293,39 @@ def db_list(
     """
     var safe_limit = min(limit, 100)
     var now = _now()
-    var stmt = db.prepare(
+    var has_before = before_ts > 0
+    var has_search = search.byte_length() > 0
+
+    # Build WHERE clause and bind list dynamically to avoid N hard-coded variants.
+    var sql = String(
         "SELECT id, title, content, language, created_at, expires_at, views"
         " FROM pastes WHERE expires_at > ?"
-        " ORDER BY created_at DESC LIMIT ? OFFSET ?"
     )
-    stmt.bind_int(1, now)
-    stmt.bind_int(2, safe_limit)
-    stmt.bind_int(3, offset)
+    if has_before:
+        sql += " AND created_at < ?"
+    if has_search:
+        sql += " AND (title LIKE ? OR content LIKE ?)"
+    sql += " ORDER BY created_at DESC LIMIT ?"
+    if not has_before:
+        sql += " OFFSET ?"
+
+    var stmt = db.prepare(sql)
+    var idx = 1
+    stmt.bind_int(idx, now)
+    idx += 1
+    if has_before:
+        stmt.bind_int(idx, before_ts)
+        idx += 1
+    if has_search:
+        var pattern = "%" + search + "%"
+        stmt.bind_text(idx, pattern)
+        idx += 1
+        stmt.bind_text(idx, pattern)
+        idx += 1
+    stmt.bind_int(idx, safe_limit)
+    idx += 1
+    if not has_before:
+        stmt.bind_int(idx, offset)
 
     var results = List[Paste]()
     while True:

@@ -240,16 +240,37 @@ SQLite WAL mode handles concurrent reads well at these concurrency levels. Write
 
 ### Service / feature gaps
 
-| Area | Gap | Effort |
-|------|-----|--------|
-| **Authentication** | All pastes are public; no user accounts or private pastes | High |
-| **Paste editing** | No `PUT /paste/{id}` endpoint; pastes are immutable | Low |
-| **Expiry enforcement** | Expired rows stay in the DB until the next read; no background sweep | Low — add a cleanup job in the WS idle loop |
-| **WS child death** | If the WS child exhausts its 10 retries the live feed goes silent without alerting the user | Medium — restart the whole process or expose a `/ws/health` probe |
-| **Single-region SQLite** | SQLite gives one writer; horizontal scaling needs a different DB | High — would require Turso/libSQL or Postgres |
-| **No pagination cursor** | `GET /pastes?offset=N` is offset-based; skips under concurrent inserts | Low — switch to `WHERE id < last_seen` keyset pagination |
-| **No paste search** | Full-text search over content not supported | Medium — SQLite FTS5 extension |
-| **Rate limiting coarse** | Caddy rate-limits by IP; no per-paste-creator limits | Medium |
+Items marked ✅ have been implemented. Remaining items are open improvements.
+
+| Area | Status | Notes |
+|------|--------|-------|
+| **Paste editing** | ✅ Done | `PUT /paste/{id}` with `X-Delete-Token`; partial updates (omit any field to keep current value); optional `ttl_days` to reset expiry |
+| **Expiry enforcement** | ✅ Done | Background sweep runs every 60 s in the WS process; startup purge cleans rows that expired while the service was down |
+| **Keyset pagination** | ✅ Done | `GET /pastes?before=<unix_ts>` for cursor-stable pages (no row skips under concurrent inserts); classic `offset=N` still supported |
+| **Paste search** | ✅ Done | `GET /pastes?q=<term>` filters by case-insensitive substring match over title and content (SQLite LIKE) |
+| **Authentication** | Not planned | Pastes are intentionally public; delete token is the only ownership proof |
+| **WS child death** | Open | After 10 retries the live feed goes silent; a `/ws/health` probe or HTTP-parent restart could alert the user |
+| **Single-region SQLite** | Open | One writer; horizontal scaling requires Turso/libSQL or Postgres |
+| **Rate limiting** | Partial | Caddy rate-limits by IP; no per-paste-creator quotas |
+| **Full-text search** | Open | Current LIKE search is `O(n)` per query; SQLite FTS5 would be faster at scale |
+| **Keyset + search combo** | Open | `?q=&before=` currently ignores `before` when `offset`-less keyset is used — the two filters compose but paginating a search result set requires client tracking of the last `created_at` |
+
+#### New API surface (v0.2)
+
+```
+PUT /paste/{id}
+  Headers:  X-Delete-Token: <token>
+  Body:     {"title":"…","content":"…","language":"…","ttl_days":7}
+            (all fields optional — omitted fields keep their current value)
+  Response: updated Paste JSON (same shape as GET, no delete_token)
+
+GET /pastes?q=hello&limit=20
+  Returns only pastes whose title or content contains "hello" (case-insensitive)
+
+GET /pastes?before=1775000000&limit=20
+  Returns up to 20 pastes with created_at < 1775000000, newest first.
+  Response includes "next_before":<unix_ts> when more pages exist.
+```
 
 ### Mojo DX friction (things the language/libs should fix)
 

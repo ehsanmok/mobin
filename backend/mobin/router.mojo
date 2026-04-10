@@ -11,6 +11,7 @@ from .handlers import (
     health_handler,
     create_paste_handler,
     get_paste_handler,
+    update_paste_handler,
     delete_paste_handler,
     list_pastes_handler,
     stats_handler,
@@ -51,10 +52,11 @@ def router(
         GET    /              → serve embedded frontend HTML
         GET    /health        → liveness probe
         GET    /stats         → aggregate statistics
-        GET    /pastes        → paginated paste list
+        GET    /pastes        → paginated paste list (supports ?q= search, ?before= keyset)
         POST   /paste         → create a new paste
         GET    /paste/{id}    → retrieve a paste (increments views)
-        DELETE /paste/{id}    → delete a paste
+        PUT    /paste/{id}    → update a paste (requires X-Delete-Token)
+        DELETE /paste/{id}    → delete a paste (requires X-Delete-Token)
         OPTIONS *             → CORS preflight
 
     Args:
@@ -77,9 +79,9 @@ def router(
         var r = Response(status=Status.NO_CONTENT, reason="")
         r.headers.set("Access-Control-Allow-Origin", "*")
         r.headers.set(
-            "Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
         )
-        r.headers.set("Access-Control-Allow-Headers", "Content-Type")
+        r.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Delete-Token")
         return r^
 
     # Static / frontend
@@ -116,6 +118,8 @@ def router(
             return error_response(Status.BAD_REQUEST, "missing paste id")
         if req.method == Method.GET:
             return get_paste_handler(req, db, paste_id)
+        if req.method == Method.PUT:
+            return update_paste_handler(req, db, cfg, paste_id)
         if req.method == Method.DELETE:
             return delete_paste_handler(req, db, paste_id)
         return error_response(Status.METHOD_NOT_ALLOWED, "method not allowed")

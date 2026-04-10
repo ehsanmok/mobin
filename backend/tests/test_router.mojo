@@ -54,12 +54,21 @@ def _delete(path: String, token: String = "") raises -> Request:
     return r^
 
 
+def _put(path: String, body: String, token: String = "") raises -> Request:
+    """Build a PUT request with a JSON body and optional X-Delete-Token."""
+    var body_bytes = body.as_bytes()
+    var body_list = List[UInt8](capacity=len(body_bytes))
+    for b in body_bytes:
+        body_list.append(b)
+    var r = Request(method=Method.PUT, url=path, body=body_list^)
+    r.headers.set("Content-Type", "application/json")
+    if token != "":
+        r.headers.set("X-Delete-Token", token)
+    return r^
+
+
 def _body_str(resp: Response) -> String:
-    var raw = List[UInt8](capacity=len(resp.body) + 1)
-    for b in resp.body:
-        raw.append(b)
-    raw.append(0)
-    return String(unsafe_from_utf8=raw)
+    return String(from_utf8_lossy=resp.body)
 
 
 # ── Route tests ───────────────────────────────────────────────────────────────
@@ -137,7 +146,7 @@ def test_create_and_get_paste() raises:
     var create_body_str = _body_str(create_resp)
     var id_start = create_body_str.find('"id":"') + 6
     var id_end = create_body_str.find('"', id_start)
-    var paste_id = String(unsafe_from_utf8=create_body_str.as_bytes()[id_start:id_end])
+    var paste_id = String(from_utf8_lossy=create_body_str[byte=id_start:id_end].as_bytes())
 
     var get_resp = router(_get("/paste/" + paste_id), db, cfg)
     assert_equal(get_resp.status, Status.OK)
@@ -164,7 +173,7 @@ def _extract_field(body: String, field: String) raises -> String:
     var end = body.find('"', start)
     if end < 0:
         return ""
-    return String(unsafe_from_utf8=body.as_bytes()[start:end])
+    return String(from_utf8_lossy=body[byte=start:end].as_bytes())
 
 
 def test_delete_paste() raises:
@@ -227,6 +236,105 @@ def test_list_pagination() raises:
     assert_true(body.find('"count":2') >= 0)
 
 
+def test_update_paste() raises:
+    """Checks that PUT /paste/{id} with correct token updates the paste content."""
+    var db = _open_db()
+    var cfg = _cfg()
+
+    # Create a paste
+    var create_body = '{"title":"Original","content":"old content","language":"plain","ttl_days":7}'
+    var create_resp = router(_post("/paste", create_body), db, cfg)
+    assert_equal(create_resp.status, Status.OK)
+    var resp_str = _body_str(create_resp)
+    var paste_id     = _extract_field(resp_str, "id")
+    var delete_token = _extract_field(resp_str, "delete_token")
+
+    # Update without token → 401
+    var no_token_resp = router(
+        _put("/paste/" + paste_id, '{"content":"new content"}'), db, cfg
+    )
+    assert_equal(no_token_resp.status, Status.UNAUTHORIZED)
+
+    # Update with wrong token → 403
+    var bad_token_resp = router(
+        _put("/paste/" + paste_id, '{"content":"new content"}', "wrong"), db, cfg
+    )
+    assert_equal(bad_token_resp.status, Status.FORBIDDEN)
+
+    # Update with correct token → 200 with updated content
+    var update_body = '{"title":"Updated","content":"new content","language":"python"}'
+    var update_resp = router(_put("/paste/" + paste_id, update_body, delete_token), db, cfg)
+    assert_equal(update_resp.status, Status.OK)
+    var update_str = _body_str(update_resp)
+    assert_true(update_str.find("new content") >= 0)
+    assert_true(update_str.find("Updated") >= 0)
+    assert_true(update_str.find("python") >= 0)
+
+    # GET /paste/{id} should now reflect updated content
+    var get_resp = router(_get("/paste/" + paste_id), db, cfg)
+    assert_equal(get_resp.status, Status.OK)
+    var get_str = _body_str(get_resp)
+    assert_true(get_str.find("new content") >= 0)
+
+
+def test_update_paste_partial() raises:
+    """Checks that omitting fields in the PUT body preserves current values."""
+    var db = _open_db()
+    var cfg = _cfg()
+
+    var create_body = '{"title":"Keep","content":"keep me","language":"go","ttl_days":7}'
+    var create_resp = router(_post("/paste", create_body), db, cfg)
+    var resp_str     = _body_str(create_resp)
+    var paste_id     = _extract_field(resp_str, "id")
+    var delete_token = _extract_field(resp_str, "delete_token")
+
+    # Only update content; title and language should stay the same
+    var update_resp = router(
+        _put("/paste/" + paste_id, '{"content":"changed"}', delete_token), db, cfg
+    )
+    assert_equal(update_resp.status, Status.OK)
+    var body = _body_str(update_resp)
+    assert_true(body.find("changed") >= 0)
+    assert_true(body.find("Keep") >= 0)
+    assert_true(body.find('"go"') >= 0)
+
+
+def test_update_nonexistent_paste() raises:
+    """Checks that PUT /paste/missing returns 404."""
+    var db = _open_db()
+    var cfg = _cfg()
+    var resp = router(
+        _put("/paste/does-not-exist", '{"content":"x"}', "any-token"), db, cfg
+    )
+    assert_equal(resp.status, Status.NOT_FOUND)
+
+
+def test_list_search() raises:
+    """Checks that GET /pastes?q=<term> returns only matching pastes."""
+    var db = _open_db()
+    var cfg = _cfg()
+
+    _ = router(_post("/paste", '{"title":"Python guide","content":"print hello","language":"python","ttl_days":7}'), db, cfg)
+    _ = router(_post("/paste", '{"title":"Mojo intro","content":"var x = 1","language":"mojo","ttl_days":7}'), db, cfg)
+
+    var resp = router(_get("/pastes?q=Python"), db, cfg)
+    assert_equal(resp.status, Status.OK)
+    var body = _body_str(resp)
+    assert_true(body.find("Python guide") >= 0)
+    assert_true(body.find('"count":1') >= 0)
+
+
+def test_options_includes_put() raises:
+    """OPTIONS preflight response must include PUT in Allow-Methods."""
+    var db = _open_db()
+    var cfg = _cfg()
+    var req = Request(method=Method.OPTIONS, url="/paste/some-id")
+    var resp = router(req, db, cfg)
+    assert_equal(resp.status, Status.NO_CONTENT)
+    var allow = resp.headers.get("Access-Control-Allow-Methods")
+    assert_true(allow.find("PUT") >= 0)
+
+
 def main() raises:
     test_health()
     test_index()
@@ -240,4 +348,9 @@ def main() raises:
     test_not_found()
     test_options_preflight()
     test_list_pagination()
+    test_update_paste()
+    test_update_paste_partial()
+    test_update_nonexistent_paste()
+    test_list_search()
+    test_options_includes_put()
     print("test_router: all tests passed")

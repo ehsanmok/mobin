@@ -3,7 +3,8 @@
 Public re-exports for the mobin package:
 - ``Paste``, ``PasteStats``, ``ServerConfig``, ``new_paste`` from models
 - ``init_db``, ``db_create``, ``db_check_token``, ``db_get``, ``db_list``,
-  ``db_list_since``, ``db_delete``, ``db_stats``, ``db_inc_views`` from db
+  ``db_list_since``, ``db_delete``, ``db_update``, ``db_purge_expired``,
+  ``db_stats``, ``db_inc_views`` from db
 - ``router`` from router
 - ``feed_handler`` from feed
 """
@@ -16,6 +17,8 @@ from .db import (
     db_get,
     db_inc_views,
     db_delete,
+    db_update,
+    db_purge_expired,
     db_list,
     db_list_since,
     db_stats,

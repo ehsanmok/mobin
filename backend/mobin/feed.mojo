@@ -20,7 +20,7 @@ from sqlite import Database
 from std.time import sleep
 from tempo import Timestamp
 from morph.json import write
-from .db import db_list_since
+from .db import db_list_since, db_purge_expired
 
 
 def feed_handler(conn: WsConnection, db: Database) raises:
@@ -44,6 +44,12 @@ def feed_handler(conn: WsConnection, db: Database) raises:
     # paste that was created just before it connected.
     var last_seen = Int(Timestamp.now().unix_secs()) - 1
 
+    # Purge expired rows every 60 s (120 × 0.5 s poll intervals).
+    # Running in the WS process avoids adding a background thread and keeps
+    # the HTTP process free from GC-style pauses.
+    comptime PURGE_INTERVAL = 120
+    var purge_tick = 0
+
     while True:
         var new_pastes = db_list_since(db, last_seen)
         for i in range(len(new_pastes)):
@@ -61,3 +67,14 @@ def feed_handler(conn: WsConnection, db: Database) raises:
         # during the sleep, which exits this loop and unblocks the server's
         # accept() call so it can serve the next client.
         conn.send_frame(WsFrame.ping())
+
+        # Periodic cleanup: delete expired rows so the table stays bounded.
+        purge_tick += 1
+        if purge_tick >= PURGE_INTERVAL:
+            purge_tick = 0
+            try:
+                var n = db_purge_expired(db)
+                if n > 0:
+                    print("[ws] purged " + String(n) + " expired paste(s)")
+            except:
+                pass  # non-fatal — will retry next interval

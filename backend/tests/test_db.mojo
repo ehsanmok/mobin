@@ -12,6 +12,8 @@ from mobin.db import (
     db_get,
     db_inc_views,
     db_delete,
+    db_update,
+    db_purge_expired,
     db_list,
     db_list_since,
     db_stats,
@@ -247,6 +249,122 @@ def test_db_stats_counts() raises:
     assert_equal(s.total_views, 10)
 
 
+def test_db_update() raises:
+    """Checks that db_update modifies content, title, language, and expiry."""
+    var db = _open_db()
+    var p = _make_paste("upd-1", "Original", "old content")
+    db_create(db, p)
+
+    var new_expires = p.expires_at + 3600
+    db_update(db, "upd-1", "Updated Title", "new content", "python", new_expires)
+
+    var got = db_get(db, "upd-1")
+    assert_true(got.__bool__())
+    var updated = got.value()
+    assert_equal(updated.title, "Updated Title")
+    assert_equal(updated.content, "new content")
+    assert_equal(updated.language, "python")
+    assert_equal(updated.expires_at, new_expires)
+
+
+def test_db_update_expired_noop() raises:
+    """Checks that db_update is a no-op when the paste has already expired."""
+    var db = _open_db()
+    var now = _now()
+    var p = Paste(
+        id="exp-upd",
+        title="Old",
+        content="old",
+        language="plain",
+        created_at=now - 7200,
+        expires_at=now - 3600,  # expired 1 hour ago
+        views=0,
+    )
+    db_create(db, p)
+    # Update should silently do nothing (WHERE expires_at > now fails)
+    db_update(db, "exp-upd", "New", "new", "python", now + 86400)
+    var got = db_get(db, "exp-upd")
+    # Still not retrievable (expired)
+    assert_false(got.__bool__())
+
+
+def test_db_purge_expired() raises:
+    """Checks that db_purge_expired deletes expired rows and returns count."""
+    var db = _open_db()
+    var now = _now()
+
+    # Insert two expired and one active paste.
+    for i in range(2):
+        var p = Paste(
+            id="expired-" + String(i),
+            title="E",
+            content="x",
+            language="plain",
+            created_at=now - 7200,
+            expires_at=now - 3600,  # expired
+            views=0,
+        )
+        db_create(db, p)
+    var active = _make_paste("active-1", "Active", "y")
+    db_create(db, active)
+
+    var deleted = db_purge_expired(db)
+    assert_equal(deleted, 2)
+
+    # Active paste should still be retrievable.
+    var got = db_get(db, "active-1")
+    assert_true(got.__bool__())
+
+
+def test_db_list_search() raises:
+    """Checks that db_list filters by search substring in title and content."""
+    var db = _open_db()
+    var p1 = _make_paste("s-1", "Python tutorial", "print('hello')", 0)
+    var p2 = _make_paste("s-2", "Mojo intro", "var x = 42", 1)
+    var p3 = _make_paste("s-3", "Plain text", "no code here", 2)
+    db_create(db, p1)
+    db_create(db, p2)
+    db_create(db, p3)
+
+    # Search in title
+    var results = db_list(db, search="Mojo")
+    assert_equal(len(results), 1)
+    assert_equal(results[0].id, "s-2")
+
+    # Search in content
+    var results2 = db_list(db, search="hello")
+    assert_equal(len(results2), 1)
+    assert_equal(results2[0].id, "s-1")
+
+    # No match
+    var results3 = db_list(db, search="notfound")
+    assert_equal(len(results3), 0)
+
+
+def test_db_list_keyset() raises:
+    """Checks that before_ts keyset cursor returns only older pastes."""
+    var db = _open_db()
+    # Insert 3 pastes with strictly increasing created_at (spacing > 1s to avoid ties)
+    var base = _now()
+    for i in range(3):
+        var p = Paste(
+            id="ks-" + String(i),
+            title="T",
+            content="c",
+            language="plain",
+            created_at=base + i * 10,
+            expires_at=base + 86400,
+            views=0,
+        )
+        db_create(db, p)
+
+    # before_ts set to the middle paste's created_at — should only return ks-0
+    var cutoff = base + 10  # ks-1's created_at; exclude ks-1 and ks-2
+    var result = db_list(db, before_ts=cutoff)
+    assert_equal(len(result), 1)
+    assert_equal(result[0].id, "ks-0")
+
+
 def main() raises:
     test_init_db()
     test_db_create_and_get()
@@ -261,4 +379,9 @@ def main() raises:
     test_db_list_since()
     test_db_stats_empty()
     test_db_stats_counts()
+    test_db_update()
+    test_db_update_expired_noop()
+    test_db_purge_expired()
+    test_db_list_search()
+    test_db_list_keyset()
     print("test_db: all tests passed")
