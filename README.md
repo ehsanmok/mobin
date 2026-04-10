@@ -243,20 +243,90 @@ SQLite WAL mode handles concurrent reads well at these concurrency levels. Write
 
 ---
 
-## Deployment
+## Resilience
 
-### Fly.io (free tier)
+### Level 0 — baseline (already in place)
+
+| Feature | How |
+|---------|-----|
+| Container auto-restart | `restart: always` in prod compose; Fly.io restarts on health-check failure |
+| HTTP server isolation | `fork()` separates HTTP and WS into distinct OS processes — a WS crash cannot kill the HTTP server |
+| WS self-restart | WS child retries up to 10 times with exponential back-off (2 s → 16 s cap) before giving up |
+| Crash-safe DB | SQLite WAL + `synchronous=NORMAL` — survives unclean shutdown without corruption |
+| Liveness probe | `GET /health` → `{"status":"ok"}` used by Docker healthcheck and Fly.io |
+
+### Level 1 — continuous backup with Litestream (optional, ~5 min setup)
+
+Litestream streams every SQLite WAL commit to object storage in real time (≤1 s lag). On restart it restores the latest snapshot automatically. Worst-case data loss: ~1 second of writes.
+
+**Cloudflare R2** is recommended (10 GB free storage, zero egress fees):
+
+1. Create a bucket `mobin-backup` in your [R2 dashboard](https://dash.cloudflare.com/?to=/:account/r2).
+2. Generate an R2 API token with *Object Read & Write* on that bucket.
+3. Set secrets — **never commit these**:
 
 ```bash
-cd backend
-fly launch --no-deploy
-fly volumes create mobin_data --size 1
-fly deploy
+# Fly.io
+fly secrets set \
+  LITESTREAM_REPLICA_URL="s3://mobin-backup/mobin.db?endpoint=https://<account-id>.r2.cloudflarestorage.com" \
+  LITESTREAM_ACCESS_KEY_ID="<r2-access-key>" \
+  LITESTREAM_SECRET_ACCESS_KEY="<r2-secret>"
+fly deploy   # picks up new secrets + restores DB on first boot if volume is empty
+
+# Docker Compose (docker-compose.prod.yml)
+# Uncomment the LITESTREAM_* lines in the environment section and fill in values.
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Hetzner CX11 (~2 €/month)
+**Restore** from replica (e.g. after volume loss):
 
 ```bash
-# On the server
+# Fly.io — delete the old volume and create a fresh one; on next deploy
+# entrypoint.sh will restore automatically from the replica.
+fly volumes delete <vol-id>
+fly volumes create mobin_data --size 1 --region ord
+fly deploy
+
+# Docker Compose — delete the volume and restart; entrypoint.sh restores.
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d
+```
+
+---
+
+## Deployment
+
+### Fly.io
+
+```bash
+# First time
+fly launch --no-deploy --copy-config   # reads fly.toml, creates app
+fly volumes create mobin_data --size 1 --region ord
+fly deploy
+
+# Updates
+fly deploy
+
+# Useful commands
+fly logs          # tail live logs
+fly status        # health check status
+fly ssh console   # shell into the VM
+fly scale memory 1024   # bump RAM if OOM on startup (default 512 MB)
+```
+
+If Litestream is configured (via `fly secrets set`), `entrypoint.sh` restores
+the latest DB snapshot before the first request is served.
+
+### Docker Compose (VPS / bare metal)
+
+```bash
+# On the server (e.g. Hetzner CX11 ~2 €/month)
+docker compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f backend
+
+# Update to latest image
+docker compose -f docker-compose.prod.yml pull && \
 docker compose -f docker-compose.prod.yml up -d
 ```

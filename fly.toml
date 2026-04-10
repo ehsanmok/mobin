@@ -18,6 +18,8 @@ primary_region = "ord"   # Chicago — change to your nearest region
   DB_PATH  = "/data/mobin.db"
   TTL_DAYS = "30"
   MAX_SIZE = "65536"
+  # LITESTREAM_REPLICA_URL is set via `fly secrets set` — never commit it here.
+  # See "Litestream setup" in README for instructions.
 
 # HTTP server
 [[services]]

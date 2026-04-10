@@ -1,4 +1,4 @@
-"""mobin backend entry point.
+"""Mobin backend entry point.
 
 Reads configuration from environment variables and launches two servers in
 separate OS processes via ``fork()``:
@@ -148,14 +148,34 @@ def main() raises:
     var pid = Int(external_call["fork", Int32]())
 
     if pid == 0:
-        # ── Child: WebSocket server ───────────────────────────────────────────
-        try:
-            var ws_srv = WsServer.bind(SocketAddr.unspecified(UInt16(ws_port)))
-            print("WS   server ready on :" + String(ws_port))
-            ws_srv.serve(_ws_handler)
-        except e:
-            print("[ws] fatal: " + String(e))
-        return  # child exits normally
+        # ── Child: WebSocket server (with self-restart on failure) ────────────
+        # If _ws_handler raises (e.g. EPIPE on client disconnect) flare's
+        # serve() loop catches it per-connection and keeps running.  The outer
+        # try/except here handles the rare case where bind() or serve() itself
+        # throws (e.g. address already in use on restart, OS error).  We retry
+        # up to MAX_WS_RESTARTS times with an exponential back-off cap of 16 s.
+        comptime MAX_WS_RESTARTS = 10
+        var attempts = 0
+        while attempts < MAX_WS_RESTARTS:
+            try:
+                var ws_srv = WsServer.bind(SocketAddr.unspecified(UInt16(ws_port)))
+                print("WS server ready on :" + String(ws_port))
+                ws_srv.serve(_ws_handler)
+                # serve() returned cleanly (shutdown signal) — exit without retry.
+                break
+            except e:
+                attempts += 1
+                var backoff = min(1 << attempts, 16)  # 2, 4, 8 … capped at 16 s
+                print(
+                    "[ws] error (attempt "
+                    + String(attempts) + "/" + String(MAX_WS_RESTARTS)
+                    + ", retry in " + String(backoff) + "s): "
+                    + String(e)
+                )
+                _ = external_call["sleep", Int32](Int32(backoff))
+        if attempts >= MAX_WS_RESTARTS:
+            print("[ws] fatal: exceeded max restarts, giving up")
+        return  # child exits — Docker / OS will not restart it; HTTP parent continues
 
     if pid < 0:
         raise Error("fork() failed (rc=" + String(pid) + ")")

@@ -23,6 +23,20 @@ services:
       DB_PATH:  "/app/data/mobin.db"
       TTL_DAYS: "30"
       MAX_SIZE: "65536"
+      # ── Litestream (optional) ────────────────────────────────────────────
+      # Uncomment and fill in to enable continuous SQLite replication.
+      # See backend/litestream.yml for supported URL schemes and examples.
+      #
+      # Cloudflare R2 (free 10 GB, no egress):
+      #   LITESTREAM_REPLICA_URL: "s3://mobin-backup/mobin.db?endpoint=https://<id>.r2.cloudflarestorage.com"
+      #   LITESTREAM_ACCESS_KEY_ID: "<r2-access-key>"
+      #   LITESTREAM_SECRET_ACCESS_KEY: "<r2-secret>"
+      #
+      # AWS S3:
+      #   LITESTREAM_REPLICA_URL: "s3://my-bucket/mobin.db"
+      #   AWS_ACCESS_KEY_ID: "<key>"
+      #   AWS_SECRET_ACCESS_KEY: "<secret>"
+      #   AWS_REGION: "us-east-1"
     volumes:
       - mobin-data:/app/data   # persistent SQLite WAL database
     healthcheck:

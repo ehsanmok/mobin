@@ -1,0 +1,27 @@
+# Litestream continuous SQLite replication config.
+#
+# Activated only when LITESTREAM_REPLICA_URL is set (see entrypoint.sh).
+# Supported URL schemes:
+#
+#   file:///backup/mobin.db                          local file
+#   s3://bucket/mobin.db                             AWS S3
+#   s3://bucket/mobin.db?endpoint=https://...        Cloudflare R2
+#   abs://account/container/mobin.db                 Azure Blob Storage
+#   gcs://bucket/mobin.db                            GCS
+#
+# Cloudflare R2 example (10 GB free, no egress fees):
+#   LITESTREAM_REPLICA_URL=s3://mobin-backup/mobin.db?endpoint=https://<id>.r2.cloudflarestorage.com
+#   LITESTREAM_ACCESS_KEY_ID=<r2-access-key>
+#   LITESTREAM_SECRET_ACCESS_KEY=<r2-secret-key>
+
+dbs:
+  - path: ${DB_PATH}
+    replicas:
+      - url: ${LITESTREAM_REPLICA_URL}
+        # Sync WAL frames every second. Raises durability without hammering the
+        # network — worst-case data loss on crash is ~1 second of writes.
+        sync-interval: 1s
+        # Keep 24 hours of snapshots (one full snapshot + WAL segments).
+        # Older snapshots are pruned automatically.
+        retention: 24h
+        retention-check-interval: 1h
