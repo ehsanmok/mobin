@@ -166,11 +166,9 @@ def create_paste_handler(
     if len(req.body) == 0:
         return error_response(Status.BAD_REQUEST, "request body is required")
 
-    var raw = List[UInt8](capacity=len(req.body) + 1)
-    for b in req.body:
-        raw.append(b)
-    raw.append(0)
-    var body = String(unsafe_from_utf8=raw)
+    # from_utf8_lossy replaces invalid UTF-8 bytes with U+FFFD rather than
+    # crashing; the JSON parser will reject structurally invalid input anyway.
+    var body = String(from_utf8_lossy=req.body)
 
     var cr: CreateRequest
     try:
@@ -204,9 +202,9 @@ def create_paste_handler(
     # Append delete_token to the response JSON. It is intentionally omitted
     # from GET/LIST responses so it is only ever visible to the creator.
     var paste_json = _paste_to_json(paste)
-    var n = paste_json.byte_length()
+    # Strip the trailing "}" and inject the delete_token field.
     var response_json = (
-        String(unsafe_from_utf8=paste_json.as_bytes()[:n-1])
+        String(from_utf8_lossy=paste_json[byte=: paste_json.byte_length() - 1].as_bytes())
         + ',"delete_token":"' + delete_token + '"}'
     )
     return json_response(Status.OK, response_json)
@@ -337,11 +335,11 @@ def _parse_query_int(query: String, key: String, default_val: Int) -> Int:
         return default_val
     var start = idx + search.byte_length()
     var end = query.find("&", start)
-    var val_str: String
-    if end < 0:
-        val_str = String(unsafe_from_utf8=query.as_bytes()[start:])
-    else:
-        val_str = String(unsafe_from_utf8=query.as_bytes()[start:end])
+    var val_str = (
+        String(from_utf8_lossy=query[byte=start:].as_bytes())
+        if end < 0
+        else String(from_utf8_lossy=query[byte=start:end].as_bytes())
+    )
     try:
         return Int(val_str)
     except:

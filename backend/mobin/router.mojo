@@ -33,8 +33,8 @@ def _parse_path_query(url: String) -> Tuple[String, String]:
     if q_idx < 0:
         return (url, "")
     return (
-        String(unsafe_from_utf8=url.as_bytes()[:q_idx]),
-        String(unsafe_from_utf8=url.as_bytes()[q_idx + 1 :]),
+        String(from_utf8_lossy=url[byte=:q_idx].as_bytes()),
+        String(from_utf8_lossy=url[byte=q_idx + 1 :].as_bytes()),
     )
 
 
@@ -111,7 +111,7 @@ def router(
     # Paste by ID: /paste/<uuid>
     comptime _PREFIX: String = "/paste/"
     if path.startswith(_PREFIX):
-        var paste_id = String(unsafe_from_utf8=path.as_bytes()[_PREFIX.byte_length() :])
+        var paste_id = String(from_utf8_lossy=path.removeprefix(_PREFIX).as_bytes())
         if paste_id.byte_length() == 0:
             return error_response(Status.BAD_REQUEST, "missing paste id")
         if req.method == Method.GET:

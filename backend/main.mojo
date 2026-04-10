@@ -125,7 +125,7 @@ def main() raises:
     # Ensure the parent directory of the DB file exists.
     var slash_pos = db_path.rfind("/")
     if slash_pos > 0:
-        var dir_part = String(unsafe_from_utf8=db_path.as_bytes()[:slash_pos])
+        var dir_part = String(from_utf8_lossy=db_path[byte=:slash_pos].as_bytes())
         try:
             makedirs(dir_part, exist_ok=True)
         except:
