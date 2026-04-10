@@ -1,0 +1,21 @@
+# Build artifacts
+backend/mobin-backend
+backend/*.mojopkg
+backend/data/
+
+# Pixi environment
+.pixi/
+*.pixi.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.venv/
+
+# Docker
+*.log
+
+# OS
+.DS_Store

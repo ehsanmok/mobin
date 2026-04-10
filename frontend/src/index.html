@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mobin — Mojo Pastebin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c10;
+  --surface: #12151d;
+  --surface2: #1a1e2a;
+  --border: #252939;
+  --border2: #2e3347;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --muted: #64748b;
+  --accent: #f97316;
+  --accent2: #fb923c;
+  --accent-dim: rgba(249,115,22,.12);
+  --green: #22c55e;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --font: 'Inter', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --radius: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10,12,16,.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: .85rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.logo {
+  font-size: 1.4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -.02em;
+}
+
+.tagline { color: var(--muted); font-size: .8rem; }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .7rem;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.pill-orange { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(249,115,22,.3); }
+
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.layout {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.5rem;
+}
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-hdr {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.card-body { padding: 1.1rem; }
+
+/* ── Form ────────────────────────────────────────────────────────────── */
+form { display: flex; flex-direction: column; gap: .8rem; }
+
+input, select, textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: .6rem .85rem;
+  font-size: .88rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+
+textarea {
+  font-family: var(--mono);
+  min-height: 220px;
+  resize: vertical;
+  font-size: .83rem;
+  line-height: 1.6;
+}
+
+.row { display: flex; gap: .6rem; }
+.row > * { flex: 1; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  padding: .65rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  font-family: var(--font);
+}
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  width: 100%;
+}
+.btn-primary:hover:not(:disabled) { opacity: .88; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  width: auto;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-sm { padding: .3rem .7rem; font-size: .75rem; border-radius: 6px; }
+
+/* ── Stats ───────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .6rem;
+}
+.stat-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .7rem;
+  text-align: center;
+}
+.stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+.stat-lbl { font-size: .68rem; color: var(--muted); margin-top: .15rem; text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── Feed ────────────────────────────────────────────────────────────── */
+.live-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)} 50%{opacity:.6;box-shadow:0 0 0 4px rgba(34,197,94,0)} }
+
+.badge { font-size: .68rem; padding: .2rem .5rem; border-radius: 12px; font-weight: 600; font-family: var(--mono); }
+.badge-ws { background: #052e16; color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+.badge-poll { background: #1c1917; color: var(--muted); border: 1px solid var(--border); }
+.badge-connecting { background: #1c1917; color: #94a3b8; border: 1px solid var(--border); }
+
+#feed-container { max-height: 520px; overflow-y: auto; }
+
+.paste-card {
+  padding: .75rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .15s;
+}
+.paste-card:last-child { border-bottom: none; }
+.paste-card:hover { background: var(--surface2); }
+.paste-card .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; gap: .5rem; }
+.paste-card .ptitle { font-weight: 600; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.paste-card .lang { background: var(--border); color: var(--muted); font-size: .68rem; padding: .15rem .45rem; border-radius: 4px; font-family: var(--mono); white-space: nowrap; }
+.paste-card .snippet { color: var(--muted); font-size: .78rem; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.feed-empty { color: var(--muted); text-align: center; padding: 2rem; font-size: .85rem; }
+
+/* ── Detail view ─────────────────────────────────────────────────────── */
+#detail { display: none; }
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .75rem;
+}
+.detail-title { font-size: 1.15rem; font-weight: 700; }
+.detail-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  color: var(--muted);
+  font-size: .78rem;
+  margin-bottom: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border);
+}
+.detail-meta span { display: flex; align-items: center; gap: .3rem; }
+
+pre {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.65;
+  color: #c9d1d9;
+  max-height: 60vh;
+}
+
+/* ── Share bar ───────────────────────────────────────────────────────── */
+.share-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .5rem .75rem;
+  margin-bottom: .75rem;
+  font-size: .8rem;
+  font-family: var(--mono);
+}
+.share-url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
+
+/* ── Toast ───────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: .7rem 1.2rem;
+  border-radius: var(--radius);
+  font-size: .85rem;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all .25s;
+  pointer-events: none;
+  z-index: 1000;
+  max-width: 280px;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: rgba(34,197,94,.4); }
+.toast.error { border-color: rgba(239,68,68,.4); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">mobin</span>
+  <span class="tagline">Mojo-powered pastebin</span>
+  <div class="header-right">
+    <span class="pill pill-orange">🔥 Mojo</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Left column: create form + detail view -->
+  <div>
+    <!-- Create form -->
+    <div class="card" id="create-section">
+      <div class="card-hdr">✏️ New Paste</div>
+      <div class="card-body">
+        <form id="create-form">
+          <input type="text" id="title" placeholder="Title (optional)">
+          <textarea id="content" placeholder="Paste your code or text here..." spellcheck="false"></textarea>
+          <div class="row">
+            <select id="language">
+              <option value="plain">Plain Text</option>
+              <option value="python">Python</option>
+              <option value="mojo">Mojo 🔥</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="rust">Rust</option>
+              <option value="go">Go</option>
+              <option value="c">C</option>
+              <option value="cpp">C++</option>
+              <option value="shell">Shell / Bash</option>
+              <option value="json">JSON</option>
+              <option value="toml">TOML</option>
+              <option value="yaml">YAML</option>
+              <option value="sql">SQL</option>
+              <option value="markdown">Markdown</option>
+            </select>
+            <select id="ttl">
+              <option value="1">Expires in 1 day</option>
+              <option value="7" selected>Expires in 7 days</option>
+              <option value="30">Expires in 30 days</option>
+              <option value="90">Expires in 90 days</option>
+              <option value="365">Expires in 1 year</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" id="create-btn">Create Paste</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Paste detail view (hidden by default) -->
+    <div class="card" id="detail">
+      <div class="card-body">
+        <button class="btn btn-ghost btn-sm" onclick="showCreate()" style="margin-bottom:1rem">← Back</button>
+        <div class="detail-header">
+          <div class="detail-title" id="detail-title"></div>
+          <div class="detail-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copyContent()">Copy</button>
+            <button class="btn btn-ghost btn-sm" onclick="sharePaste()">Share</button>
+          </div>
+        </div>
+        <div class="detail-meta" id="detail-meta"></div>
+        <div class="share-bar" id="share-bar" style="display:none">
+          <span class="share-url" id="share-url"></span>
+          <button class="btn btn-ghost btn-sm" onclick="copyShareUrl()">Copy URL</button>
+        </div>
+        <pre id="detail-content"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: stats + live feed -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+    <!-- Stats card -->
+    <div class="card">
+      <div class="card-hdr">📊 Stats</div>
+      <div class="card-body">
+        <div class="stats-grid">
+          <div class="stat-box"><div class="stat-val" id="s-total">—</div><div class="stat-lbl">Total</div></div>
+          <div class="stat-box"><div class="stat-val" id="s-today">—</div><div class="stat-lbl">Today</div></div>
+          <div class="stat-box"><div class="stat-val" id="s-views">—</div><div class="stat-lbl">Views</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live feed card -->
+    <div class="card" style="flex:1">
+      <div class="card-hdr">
+        <span class="live-dot"></span>
+        Live Feed
+        <span class="badge badge-connecting" id="conn-badge">connecting…</span>
+      </div>
+      <div id="feed-container">
+        <div class="feed-empty" id="feed-empty">Waiting for pastes…</div>
+        <div id="feed-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config (change for production) ──────────────────────────────────────────
+const HOST = window.location.hostname;
+const API  = window.location.protocol + '//' + HOST + ':8080';
+const WS   = 'ws://' + HOST + ':8081/feed';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let feedPastes = [];
+let ws = null;
+let pollTimer = null;
+let lastSeenAt = Math.floor(Date.now() / 1000) - 5;
+let currentPasteId = null;
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fmtDate(unix) {
+  if (!unix) return '—';
+  return new Date(unix * 1000).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+}
+
+function toast(msg, type = 'info', ms = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch(API + '/stats');
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('s-total').textContent = (d.total ?? 0).toLocaleString();
+    document.getElementById('s-today').textContent = (d.today ?? 0).toLocaleString();
+    document.getElementById('s-views').textContent = (d.total_views ?? 0).toLocaleString();
+  } catch (e) {}
+}
+
+// ── Feed rendering ───────────────────────────────────────────────────────────
+function addToFeed(paste) {
+  if (feedPastes.find(p => p.id === paste.id)) return;
+  feedPastes.unshift(paste);
+  if (feedPastes.length > 60) feedPastes.pop();
+  renderFeed();
+}
+
+function renderFeed() {
+  const empty = document.getElementById('feed-empty');
+  const list  = document.getElementById('feed-list');
+  if (feedPastes.length === 0) {
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = feedPastes.map(p => `
+    <div class="paste-card" onclick="viewPaste('${esc(p.id)}')">
+      <div class="meta">
+        <span class="ptitle">${esc(p.title || 'Untitled')}</span>
+        <span class="lang">${esc(p.language || 'plain')}</span>
+      </div>
+      <div class="snippet">${esc((p.content || '').slice(0, 90))}</div>
+    </div>`).join('');
+}
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function setBadge(mode) {
+  const b = document.getElementById('conn-badge');
+  b.textContent = mode;
+  b.className = 'badge ' + (mode === 'live' ? 'badge-ws' : mode === 'polling' ? 'badge-poll' : 'badge-connecting');
+}
+
+function connectWS() {
+  try {
+    ws = new WebSocket(WS);
+    ws.onopen = () => {
+      setBadge('live');
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    };
+    ws.onmessage = (e) => {
+      try { const p = JSON.parse(e.data); addToFeed(p); loadStats(); }
+      catch (_) {}
+    };
+    ws.onclose = () => {
+      setBadge('polling');
+      startPolling();
+      setTimeout(connectWS, 5000);
+    };
+    ws.onerror = () => { if (ws) ws.close(); };
+  } catch (e) {
+    setBadge('polling');
+    startPolling();
+  }
+}
+
+// ── Polling fallback ─────────────────────────────────────────────────────────
+async function pollFeed() {
+  try {
+    const r = await fetch(API + '/pastes?limit=10');
+    if (!r.ok) return;
+    const d = await r.json();
+    (d.pastes || []).forEach(p => {
+      if ((p.created_at || 0) > lastSeenAt) addToFeed(p);
+    });
+    lastSeenAt = Math.floor(Date.now() / 1000);
+  } catch (e) {}
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(pollFeed, 3000);
+  pollFeed();
+}
+
+// ── Create paste ─────────────────────────────────────────────────────────────
+document.getElementById('create-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('create-btn');
+  const content = document.getElementById('content').value.trim();
+  if (!content) { toast('Content is required', 'error'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+  const payload = {
+    title:    document.getElementById('title').value.trim() || 'Untitled',
+    content:  content,
+    language: document.getElementById('language').value,
+    ttl_days: parseInt(document.getElementById('ttl').value, 10),
+  };
+  try {
+    const r = await fetch(API + '/paste', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast('Error: ' + (d.error || r.status), 'error'); return; }
+    toast('Paste created!', 'success');
+    document.getElementById('create-form').reset();
+    setTimeout(() => viewPaste(d.id), 200);
+    loadStats();
+  } catch (ex) {
+    toast('Network error — is the backend running?', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Paste';
+  }
+});
+
+// ── View paste ───────────────────────────────────────────────────────────────
+async function viewPaste(id) {
+  try {
+    const r = await fetch(API + '/paste/' + encodeURIComponent(id));
+    if (r.status === 404) { toast('Paste not found or expired', 'error'); return; }
+    if (!r.ok) { toast('Error fetching paste', 'error'); return; }
+    const p = await r.json();
+    currentPasteId = id;
+
+    document.getElementById('create-section').style.display = 'none';
+    document.getElementById('detail').style.display = 'block';
+    document.getElementById('detail-title').textContent = p.title || 'Untitled';
+    document.getElementById('detail-content').textContent = p.content || '';
+    document.getElementById('detail-meta').innerHTML =
+      `<span>🌐 ${esc(p.language || 'plain')}</span>` +
+      `<span>👁 ${(p.views || 0).toLocaleString()} views</span>` +
+      `<span>📅 Created ${fmtDate(p.created_at)}</span>` +
+      `<span>⏳ Expires ${fmtDate(p.expires_at)}</span>`;
+    document.getElementById('share-bar').style.display = 'none';
+    window.history.pushState({}, '', '/paste/' + id);
+  } catch (ex) {
+    toast('Error loading paste', 'error');
+  }
+}
+
+function showCreate() {
+  document.getElementById('detail').style.display = 'none';
+  document.getElementById('create-section').style.display = 'block';
+  currentPasteId = null;
+  window.history.pushState({}, '', '/');
+}
+
+function copyContent() {
+  const text = document.getElementById('detail-content').textContent;
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Copied to clipboard!', 'success'))
+    .catch(() => toast('Copy failed', 'error'));
+}
+
+function sharePaste() {
+  const shareBar = document.getElementById('share-bar');
+  const url = window.location.origin + '/paste/' + currentPasteId;
+  document.getElementById('share-url').textContent = url;
+  shareBar.style.display = shareBar.style.display === 'none' ? 'flex' : 'none';
+}
+
+function copyShareUrl() {
+  const url = document.getElementById('share-url').textContent;
+  navigator.clipboard.writeText(url)
+    .then(() => toast('URL copied!', 'success'))
+    .catch(() => toast('Copy failed', 'error'));
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', () => {
+  if (window.location.pathname.startsWith('/paste/')) {
+    viewPaste(window.location.pathname.replace('/paste/', ''));
+  } else {
+    showCreate();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadStats();
+setInterval(loadStats, 30000);
+connectWS();
+
+// Handle deep-link (e.g. share URL)
+if (window.location.pathname.startsWith('/paste/')) {
+  viewPaste(window.location.pathname.replace('/paste/', ''));
+}
+</script>
+</body>
+</html>

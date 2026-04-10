@@ -1,0 +1,63 @@
+version: "3.9"
+
+# Development compose: backend + frontend + locust web UI
+# Usage:
+#   docker compose up --build
+#   Open http://localhost:3000  → mobin UI (via frontend nginx)
+#   Open http://localhost:8080  → backend API directly
+#   Open http://localhost:8089  → locust load test UI
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mobin-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # HTTP API
+      - "8081:8081"   # WebSocket feed
+    environment:
+      MOBIN__HOST: "0.0.0.0"
+      MOBIN__PORT: "8080"
+      MOBIN__WS_PORT: "8081"
+      MOBIN__DB_PATH: "/data/mobin.db"
+    volumes:
+      - backend-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mobin-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  locust:
+    build:
+      context: ./integtest
+      dockerfile: Dockerfile
+    container_name: mobin-locust
+    restart: unless-stopped
+    ports:
+      - "8089:8089"    # Locust web UI
+    environment:
+      MOBIN_HOST: "http://backend:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["load-ui"]   # Start locust with the web UI by default
+
+volumes:
+  backend-data:
+    driver: local

@@ -1,0 +1,23 @@
+# Pixi environment — rebuilt inside Docker via `pixi install`
+.pixi/
+
+# Compiled binary — rebuilt inside Docker via `pixi run build`
+mobin-backend
+
+# Build artifacts and caches
+__pycache__/
+*.pyc
+*.pyo
+.mojo_cache/
+
+# Test and dev files not needed in the image
+tests/
+benchmark/
+mre/
+
+# Editor / OS noise
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/

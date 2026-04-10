@@ -1,0 +1,25 @@
+[workspace]
+channels = ["conda-forge"]
+name = "mobin-integtest"
+platforms = ["linux-64", "osx-arm64", "linux-aarch64"]
+version = "0.1.0"
+
+[dependencies]
+python  = ">=3.11,<4"
+pytest  = ">=8.0,<9"
+httpx   = ">=0.27,<1"
+# websockets for WS integration tests
+websockets = ">=13,<14"
+# Locust for load testing
+locust  = ">=2.31,<3"
+
+[tasks]
+# Run integration tests (requires backend to be running on :8080)
+test     = { cmd = "pytest test_api.py test_health.py -v" }
+test-all = { cmd = "pytest . -v" }
+
+# Load test: headless mode, 50 concurrent users, 10/s spawn rate, 60s run
+load-test = { cmd = "locust --headless -u 50 -r 5 --host http://localhost:8080 --run-time 60s -f locustfile.py" }
+
+# Load test with web UI on :8089 (MOBIN_HOST is set by docker-compose env)
+load-ui = { cmd = "locust --host ${MOBIN_HOST:-http://localhost:8080} -f locustfile.py --web-port 8089 --web-host 0.0.0.0" }

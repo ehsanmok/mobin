@@ -1,0 +1,10 @@
+# mobin backend configuration
+# Overridden by env vars (HOST, PORT, WS_PORT, DB_PATH, MAX_SIZE, TTL_DAYS)
+# or CLI flags (--host, --port, --ws-port, --db-path, --max-size, --ttl-days)
+
+host     = "0.0.0.0"
+port     = 8080
+ws_port  = 8081
+db_path  = "data/mobin.db"
+max_size = 65536
+ttl_days = 30
