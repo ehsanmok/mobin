@@ -14,9 +14,15 @@ services:
     image: mobin-backend:latest
     container_name: mobin-backend-prod
     restart: always
-    ports:
-      - "8080:8080"   # HTTP REST API + embedded frontend
-      - "8081:8081"   # WebSocket live feed
+    # ── NOTE ────────────────────────────────────────────────────────────────
+    # No ports are exposed here intentionally.  All traffic flows through the
+    # Caddy service (ports 80/443) which reverse-proxies to this container
+    # over the internal Docker network.  If you need direct backend access for
+    # debugging, temporarily add `ports: ["8080:8080", "8081:8081"]`.
+    # ────────────────────────────────────────────────────────────────────────
+    expose:
+      - "8080"
+      - "8081"
     environment:
       PORT:     "8080"
       WS_PORT:  "8081"
@@ -52,8 +58,9 @@ services:
           memory: "512M"   # Mojo JIT needs headroom at startup
 
   # ── Caddy reverse proxy (TLS + security headers) ──────────────────────────
-  # Caddy terminates TLS automatically via Let's Encrypt.
-  # Edit Caddyfile to set your domain and (optionally) enable rate limiting.
+  # Caddy terminates TLS automatically via Let's Encrypt when CADDY_DOMAIN is
+  # set to a real hostname.  For local testing leave CADDY_DOMAIN as ":80"
+  # (plain HTTP, no cert needed).
   caddy:
     image: caddy:2-alpine
     container_name: mobin-caddy
@@ -62,6 +69,10 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"   # HTTP/3
+    environment:
+      # Local test  → ":80"  (plain HTTP, no TLS)
+      # Production  → "mobin.yourdomain.com"  (auto TLS via Let's Encrypt)
+      CADDY_DOMAIN: "${CADDY_DOMAIN:-:80}"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

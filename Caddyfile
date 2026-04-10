@@ -18,9 +18,13 @@
     # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-# Replace mobin.example.com with your domain.
-# Caddy obtains and renews TLS certificates automatically.
-mobin.example.com {
+# CADDY_DOMAIN controls the host Caddy listens on:
+#   :80              → plain HTTP, no TLS  (local testing)
+#   mobin.example.com → automatic TLS via Let's Encrypt (production)
+#
+# Set it in docker-compose.prod.yml or export CADDY_DOMAIN before `caddy run`.
+# Default (if unset) is :80 — safe for local testing.
+{$CADDY_DOMAIN::80} {
     # ── Rate limiting ────────────────────────────────────────────────────
     # Requires caddy-ratelimit plugin (see header comment).
     # Uncomment once the plugin is compiled in:
@@ -63,4 +67,11 @@ mobin.example.com {
 
     # All other traffic → HTTP API.
     reverse_proxy backend:8080
+
+    # ── Error responses ──────────────────────────────────────────────────
+    # Strip Server header from Caddy-generated errors too (e.g. 413).
+    handle_errors {
+        header -Server
+        respond "{err.status_code} {err.status_text}"
+    }
 }
