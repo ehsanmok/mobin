@@ -179,8 +179,9 @@ padding:.6rem;text-align:center}
 </main>
 <div class="toast" id="toast"></div>
 <script>
-const API = (window.location.protocol + '//' + window.location.hostname + ':8080');
-const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const IS_PROD = window.location.protocol === 'https:';
+const API = IS_PROD ? window.location.origin : (window.location.protocol + '//' + window.location.hostname + ':8080');
+const WS_SCHEME = IS_PROD ? 'wss' : 'ws';
 const WS_URL = (WS_SCHEME + '://' + window.location.hostname + ':8081/feed');
 let feedPastes = [];
 let ws = null;

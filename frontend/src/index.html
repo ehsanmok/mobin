@@ -416,10 +416,17 @@ pre {
 <div class="toast" id="toast"></div>
 
 <script>
-// ── Config (change for production) ──────────────────────────────────────────
+// ── Config ──────────────────────────────────────────────────────────────────
+// Production (HTTPS): API goes through the same origin (443 → 8080 internally).
+// WS connects on :8081 where Fly.io terminates TLS via [[services]] with a
+// dedicated IPv4.  Falls back to polling if WS is unreachable.
+// Local dev: explicit ports for the two separate backend processes.
 const HOST      = window.location.hostname;
-const API       = window.location.protocol + '//' + HOST + ':8080';
-const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const IS_PROD   = window.location.protocol === 'https:';
+const API       = IS_PROD
+  ? window.location.origin
+  : window.location.protocol + '//' + HOST + ':8080';
+const WS_SCHEME = IS_PROD ? 'wss' : 'ws';
 const WS        = WS_SCHEME + '://' + HOST + ':8081/feed';
 
 // ── State ────────────────────────────────────────────────────────────────────
