@@ -21,5 +21,7 @@ test-all = { cmd = "pytest . -v" }
 # Load test: headless mode, 50 concurrent users, 10/s spawn rate, 60s run
 load-test = { cmd = "locust --headless -u 50 -r 5 --host http://localhost:8080 --run-time 60s -f locustfile.py" }
 
-# Load test with web UI on :8089 (MOBIN_HOST is set by docker-compose env)
-load-ui = { cmd = "locust --host ${MOBIN_HOST:-http://localhost:8080} -f locustfile.py --web-port 8089 --web-host 0.0.0.0" }
+# Load test with web UI on :8089
+# MOBIN_HOST is injected by docker-compose or the Dockerfile ENV.
+# Pixi (deno_task_shell) supports simple $VAR expansion; task env provides the default.
+load-ui = { cmd = "locust --host $MOBIN_HOST -f locustfile.py --web-port 8089 --web-host 0.0.0.0", env = { MOBIN_HOST = "http://localhost:8080" } }

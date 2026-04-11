@@ -48,7 +48,7 @@ primary_region = 'ord'
     handlers = ['tls', 'http']
 
 [[vm]]
-  memory = '512mb'    # AOT binary; no JIT compilation at runtime
+  memory = '256mb'    # AOT binary fits in free-tier 256 MB allowance
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 512
+  memory_mb = 256

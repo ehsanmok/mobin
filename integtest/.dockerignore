@@ -1,0 +1,13 @@
+# Never copy the host-built pixi env into the image — shebangs would point to
+# the host machine's absolute paths and binaries would be the wrong architecture.
+.pixi/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# pytest artefacts
+.pytest_cache/
+.coverage
+htmlcov/
