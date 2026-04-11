@@ -348,11 +348,14 @@ pre {
               <option value="markdown">Markdown</option>
             </select>
             <select id="ttl">
-              <option value="1">Expires in 1 day</option>
-              <option value="7" selected>Expires in 7 days</option>
-              <option value="30">Expires in 30 days</option>
-              <option value="90">Expires in 90 days</option>
-              <option value="365">Expires in 1 year</option>
+              <option value="60">Expires in 1 minute</option>
+              <option value="300">Expires in 5 minutes</option>
+              <option value="3600" selected>Expires in 1 hour</option>
+              <option value="43200">Expires in 12 hours</option>
+              <option value="86400">Expires in 1 day</option>
+              <option value="345600">Expires in 4 days</option>
+              <option value="604800">Expires in 7 days</option>
+              <option value="2592000">Expires in 30 days</option>
             </select>
           </div>
           <button type="submit" class="btn btn-primary" id="create-btn">Create Paste</button>
@@ -414,9 +417,10 @@ pre {
 
 <script>
 // ── Config (change for production) ──────────────────────────────────────────
-const HOST = window.location.hostname;
-const API  = window.location.protocol + '//' + HOST + ':8080';
-const WS   = 'ws://' + HOST + ':8081/feed';
+const HOST      = window.location.hostname;
+const API       = window.location.protocol + '//' + HOST + ':8080';
+const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const WS        = WS_SCHEME + '://' + HOST + ':8081/feed';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let feedPastes = [];
@@ -433,6 +437,15 @@ function esc(s) {
 function fmtDate(unix) {
   if (!unix) return '—';
   return new Date(unix * 1000).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+}
+
+function fmtExpiry(unix) {
+  if (!unix) return '—';
+  const diff = unix - Math.floor(Date.now() / 1000);
+  if (diff <= 0) return 'expired';
+  if (diff < 3600) return 'in ' + Math.ceil(diff / 60) + ' min';
+  if (diff < 86400) return 'in ' + Math.ceil(diff / 3600) + ' hr';
+  return fmtDate(unix);
 }
 
 function toast(msg, type = 'info', ms = 2500) {
@@ -457,22 +470,43 @@ async function loadStats() {
 
 // ── Feed rendering ───────────────────────────────────────────────────────────
 function addToFeed(paste) {
+  const now = Math.floor(Date.now() / 1000);
+  if (paste.expires_at && paste.expires_at <= now) return; // already expired
   if (feedPastes.find(p => p.id === paste.id)) return;
   feedPastes.unshift(paste);
   if (feedPastes.length > 60) feedPastes.pop();
   renderFeed();
 }
 
+function purgeExpiredFromFeed() {
+  const now = Math.floor(Date.now() / 1000);
+  const before = feedPastes.length;
+  feedPastes = feedPastes.filter(p => !p.expires_at || p.expires_at > now);
+  if (feedPastes.length !== before) renderFeed();
+}
+
+async function initFeed() {
+  try {
+    const r = await fetch(API + '/pastes?limit=20');
+    if (!r.ok) return;
+    const d = await r.json();
+    // reverse so newest ends up at top after addToFeed unshifts each one
+    (d.pastes || []).slice().reverse().forEach(addToFeed);
+  } catch (e) {}
+}
+
 function renderFeed() {
+  const now   = Math.floor(Date.now() / 1000);
+  const live  = feedPastes.filter(p => !p.expires_at || p.expires_at > now);
   const empty = document.getElementById('feed-empty');
   const list  = document.getElementById('feed-list');
-  if (feedPastes.length === 0) {
+  if (live.length === 0) {
     empty.style.display = 'block';
     list.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
-  list.innerHTML = feedPastes.map(p => `
+  list.innerHTML = live.map(p => `
     <div class="paste-card" onclick="viewPaste('${esc(p.id)}')">
       <div class="meta">
         <span class="ptitle">${esc(p.title || 'Untitled')}</span>
@@ -543,7 +577,7 @@ document.getElementById('create-form').addEventListener('submit', async (e) => {
     title:    document.getElementById('title').value.trim() || 'Untitled',
     content:  content,
     language: document.getElementById('language').value,
-    ttl_days: parseInt(document.getElementById('ttl').value, 10),
+    ttl_secs: parseInt(document.getElementById('ttl').value, 10),
   };
   try {
     const r = await fetch(API + '/paste', {
@@ -581,7 +615,7 @@ async function viewPaste(id) {
       `<span>🌐 ${esc(p.language || 'plain')}</span>` +
       `<span>👁 ${(p.views || 0).toLocaleString()} views</span>` +
       `<span>📅 Created ${fmtDate(p.created_at)}</span>` +
-      `<span>⏳ Expires ${fmtDate(p.expires_at)}</span>`;
+      `<span>⏳ Expires ${fmtExpiry(p.expires_at)}</span>`;
     document.getElementById('share-bar').style.display = 'none';
     window.history.pushState({}, '', '/paste/' + id);
   } catch (ex) {
@@ -628,7 +662,9 @@ window.addEventListener('popstate', () => {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadStats();
+initFeed();
 setInterval(loadStats, 30000);
+setInterval(purgeExpiredFromFeed, 30000); // drop newly-expired items from feed
 connectWS();
 
 // Handle deep-link (e.g. share URL)

@@ -1,68 +1,59 @@
-# fly.toml — mobin on Fly.io
-# Deploy:  fly launch --no-deploy  (first time, creates app + provisions volume)
-#          fly volumes create mobin_data --size 1 --region ord
-#          fly deploy
-# Update:  fly deploy
-# Logs:    fly logs
-# SSH:     fly ssh console
+# fly.toml app configuration file generated for mobin on 2026-04-10T16:08:59-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app    = "mobin"
-primary_region = "ord"   # Chicago — change to your nearest region
+app = 'mobin'
+primary_region = 'ord'
 
 [build]
-  dockerfile = "backend/Dockerfile"
+  dockerfile = 'Dockerfile'   # root Dockerfile; build context is repo root
 
 [env]
-  PORT     = "8080"
-  WS_PORT  = "8081"
-  DB_PATH  = "/data/mobin.db"
-  TTL_DAYS = "30"
-  MAX_SIZE = "65536"
-  # LITESTREAM_REPLICA_URL is set via `fly secrets set` — never commit it here.
-  # See "Litestream setup" in README for instructions.
+  DB_PATH = '/data/mobin.db'
+  MAX_SIZE = '65536'
+  PORT = '8080'
+  TTL_SECS = '2592000'
+  WS_PORT = '8081'
 
-# HTTP server
+[[mounts]]
+  source = 'mobin_data'
+  destination = '/data'
+
 [[services]]
+  protocol = 'tcp'
   internal_port = 8080
-  protocol      = "tcp"
 
   [[services.ports]]
-    port     = 80
-    handlers = ["http"]
+    port = 80
+    handlers = ['http']
 
   [[services.ports]]
-    port     = 443
-    handlers = ["tls", "http"]
+    port = 443
+    handlers = ['tls', 'http']
 
   [services.concurrency]
-    type       = "connections"
+    type = 'connections'
     hard_limit = 200
     soft_limit = 150
 
   [[services.http_checks]]
-    interval      = "15s"
-    timeout       = "5s"
-    grace_period  = "30s"   # give Mojo JIT time to warm up
-    method        = "GET"
-    path          = "/health"
+    interval = '15s'
+    timeout = '10s'
+    grace_period = '90s'
+    method = 'GET'
+    path = '/health'
 
-# WebSocket feed — separate TCP listener (no TLS termination; clients use ws://)
-# To support wss:// upgrade to a paid plan or put Cloudflare in front.
 [[services]]
+  protocol = 'tcp'
   internal_port = 8081
-  protocol      = "tcp"
 
   [[services.ports]]
-    port     = 8081
-    handlers = ["tcp"]
+    port = 8081
+    handlers = ['tls', 'http']
 
-[mounts]
-  source      = "mobin_data"
-  destination = "/data"
-
-# Minimum viable VM: shared-cpu-1x with 512 MB RAM.
-# 256 MB is too tight for the Mojo JIT cold start.
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 1024

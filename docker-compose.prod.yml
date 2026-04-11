@@ -9,7 +9,7 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .          # repo root — Dockerfile is at root
       dockerfile: Dockerfile
     image: mobin-backend:latest
     container_name: mobin-backend-prod
@@ -27,7 +27,7 @@ services:
       PORT:     "8080"
       WS_PORT:  "8081"
       DB_PATH:  "/app/data/mobin.db"
-      TTL_DAYS: "30"
+      TTL_SECS: "2592000"
       MAX_SIZE: "65536"
       # ── Litestream (optional) ────────────────────────────────────────────
       # Uncomment and fill in to enable continuous SQLite replication.
@@ -46,16 +46,16 @@ services:
     volumes:
       - mobin-data:/app/data   # persistent SQLite WAL database
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 30s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: "512M"   # Mojo JIT needs headroom at startup
+          memory: "256M"   # pre-compiled binary; no JIT overhead
 
   # ── Caddy reverse proxy (TLS + security headers) ──────────────────────────
   # Caddy terminates TLS automatically via Let's Encrypt when CADDY_DOMAIN is

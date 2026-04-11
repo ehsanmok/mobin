@@ -1,0 +1,61 @@
+[workspace]
+authors   = ["ehsanmok <ehsanmok@users.noreply.github.com>"]
+channels  = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name      = "mobin"
+platforms = ["linux-64", "osx-arm64", "linux-aarch64"]
+version   = "0.1.0"
+preview   = ["pixi-build"]
+
+# ── Backend Mojo dependencies ──────────────────────────────────────────────────
+[dependencies]
+mojo            = "<1.0"
+flare           = { git = "https://github.com/ehsanmok/flare.git",  branch = "main" }
+json            = { git = "https://github.com/ehsanmok/json.git",   branch = "main" }
+morph           = { git = "https://github.com/ehsanmok/morph.git",  branch = "main" }
+sqlite          = { git = "https://github.com/ehsanmok/sqlite.git", branch = "main" }
+envo            = { git = "https://github.com/ehsanmok/envo.git",   branch = "main" }
+uuid            = { git = "https://github.com/ehsanmok/uuid.git",   branch = "main" }
+tempo           = { git = "https://github.com/ehsanmok/tempo.git",  branch = "main" }
+pprint          = { git = "https://github.com/ehsanmok/pprint.git", branch = "main" }
+openssl         = ">=3.6.1,<4"
+ca-certificates = ">=2025.1.31"
+zlib            = ">=1.3.1,<2"
+
+[feature.dev.dependencies]
+gxx        = ">=13"
+pre-commit = ">=4.2.0,<5"
+
+# MOJO_FLAGS: backend/ is the cwd for all backend tasks, so -I . resolves to
+# backend/ which contains the mobin/ package.
+[activation]
+env = { MOJO_FLAGS = "-I ." }
+
+[environments]
+default = { features = ["dev"], solve-group = "default" }
+dev     = { features = ["dev"], solve-group = "default" }
+
+# ── Backend tasks (all run inside backend/) ────────────────────────────────────
+[tasks]
+# Primary serve task used by entrypoint.sh and Fly.io
+serve     = { cmd = "mojo run $MOJO_FLAGS main.mojo", cwd = "backend" }
+run-dev   = { cmd = "mojo run $MOJO_FLAGS main.mojo", cwd = "backend" }
+build     = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend", cwd = "backend" }
+run       = { cmd = "./mobin-backend", cwd = "backend", depends-on = ["build"] }
+format    = { cmd = "mojo format mobin main.mojo tests/", cwd = "backend" }
+tests     = { cmd = "mojo $MOJO_FLAGS tests/test_models.mojo && mojo $MOJO_FLAGS tests/test_db.mojo && mojo $MOJO_FLAGS tests/test_router.mojo", cwd = "backend" }
+test-models = { cmd = "mojo $MOJO_FLAGS tests/test_models.mojo", cwd = "backend" }
+test-db     = { cmd = "mojo $MOJO_FLAGS tests/test_db.mojo",     cwd = "backend" }
+test-router = { cmd = "mojo $MOJO_FLAGS tests/test_router.mojo", cwd = "backend" }
+
+# ── Frontend tasks ─────────────────────────────────────────────────────────────
+# Serve the full-featured frontend locally (requires the backend to be running).
+[tasks.serve-frontend]
+cmd = "python3 -m http.server 3001"
+cwd = "frontend/src"
+
+# ── Linux overrides (requires explicit -ldl for dlopen/dlsym) ─────────────────
+[target.linux-64.tasks]
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl", cwd = "backend" }
+
+[target.linux-aarch64.tasks]
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl", cwd = "backend" }

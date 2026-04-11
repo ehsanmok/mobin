@@ -5,7 +5,7 @@ the new_paste() factory function.
 """
 
 from uuid import uuid4
-from tempo import Timestamp, Duration
+from tempo import Timestamp
 
 
 @fieldwise_init
@@ -115,7 +115,7 @@ def new_paste(
     title: String,
     content: String,
     language: String,
-    ttl_days: Int,
+    ttl_secs: Int,
 ) raises -> Paste:
     """Create a new Paste with a generated UUID and computed timestamps.
 
@@ -123,22 +123,21 @@ def new_paste(
         title:    Human-readable title for the paste.
         content:  Paste body (code or text).
         language: Syntax highlight language hint.
-        ttl_days: Number of days until the paste expires.
+        ttl_secs: Seconds until the paste expires (e.g. 3600 = 1 hour).
 
     Returns:
         A fully initialized Paste ready for insertion into the database.
 
     Raises:
-        Error: If UUID generation or timestamp computation fails.
+        Error: If UUID generation fails.
     """
-    var now = Timestamp.now()
-    var expires = now.add(Duration.from_days(Int64(ttl_days)))
+    var now = Int(Timestamp.now().unix_secs())
     return Paste(
         id=String(uuid4()),
         title=title,
         content=content,
         language=language,
-        created_at=Int(now.unix_secs()),
-        expires_at=Int(expires.unix_secs()),
+        created_at=now,
+        expires_at=now + ttl_secs,
         views=0,
     )

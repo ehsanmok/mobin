@@ -1,0 +1,497 @@
+# flyctl launch added from .gitignore
+# Build artifacts
+**/backend/mobin-backend
+**/backend/*.mojopkg
+**/backend/data
+
+# Pixi environment
+**/.pixi
+**/*.pixi.lock
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache
+**/.venv
+
+# Docker
+**/*.log
+
+# OS
+**/.DS_Store
+
+# flyctl launch added from backend/.pixi/.gitignore
+backend/.pixi/**/*
+!backend/.pixi/**/config.toml
+
+# flyctl launch added from backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/envo-RJUeT9p7K_Q-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/.gitignore
+# pixi environments
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/.pixi/*
+!backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/.pixi/config.toml
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/build
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/target
+
+# Cloned simdjson (built via `pixi run build`)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/src/simdjson_ffi/simdjson
+
+# Mojo cache
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/__pycache__
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/*.mojopkg
+
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/.cursor
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/.agents
+
+# Large benchmark datasets (download from cuJSON Google Drive)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/twitter_large_record.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/walmart_large_record.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/wiki_large_record.json
+
+# cuJSON (download on-demand for NVIDIA GPU benchmarks)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/cuJSON
+
+# build directories
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/build
+
+# Example output files
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/output.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/config.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/counter.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/gpu_test.json
+
+# build artifacts
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/output/src_cache/json.git/**/json-*
+
+# flyctl launch added from backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/.gitignore
+# Pixi
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.pixi
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/*.lock
+
+# Mojo build artifacts
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/*.pyc
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/*.mojopkg
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.mojo_cache
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.mogg_cache
+
+# FFI build output (produced by activation script → build/)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/build
+# Docs
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/target
+
+# Editor
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.DS_Store
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.idea
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.vscode
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/*.swp
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/*.conda
+
+# fuzz artifacts
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/.mozz_crashes
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/**/fuzz/corpus
+
+# flyctl launch added from backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/.gitignore
+# pixi environments
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/.pixi/*
+!backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/.pixi/config.toml
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/build
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/target
+
+# Cloned simdjson (built via `pixi run build`)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/src/simdjson_ffi/simdjson
+
+# Mojo cache
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/__pycache__
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/*.mojopkg
+
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/.cursor
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/.agents
+
+# Large benchmark datasets (download from cuJSON Google Drive)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/benchmark/datasets/twitter_large_record.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/benchmark/datasets/walmart_large_record.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/benchmark/datasets/wiki_large_record.json
+
+# cuJSON (download on-demand for NVIDIA GPU benchmarks)
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/benchmark/cuJSON
+
+# build directories
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/build
+
+# Example output files
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/output.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/config.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/counter.json
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/gpu_test.json
+
+# build artifacts
+backend/.pixi/build/work/flare-06Q_of9GMos-ME03ejjoGjs/work/json-src/**/json-*
+
+# flyctl launch added from backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/.gitignore
+# pixi environments
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/.pixi/*
+!backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/.pixi/config.toml
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/build
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/target
+
+# Cloned simdjson (built via `pixi run build`)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/src/simdjson_ffi/simdjson
+
+# Mojo cache
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/__pycache__
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/*.mojopkg
+
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/.cursor
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/.agents
+
+# Large benchmark datasets (download from cuJSON Google Drive)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/twitter_large_record.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/walmart_large_record.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/datasets/wiki_large_record.json
+
+# cuJSON (download on-demand for NVIDIA GPU benchmarks)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/benchmark/cuJSON
+
+# build directories
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/build
+
+# Example output files
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/output.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/config.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/counter.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/gpu_test.json
+
+# build artifacts
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/output/src_cache/json.git/**/json-*
+
+# flyctl launch added from backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/.gitignore
+# Pixi
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.pixi
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/*.lock
+
+# Mojo build artifacts
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/*.pyc
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/*.mojopkg
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.mojo_cache
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.mogg_cache
+
+# FFI build output (produced by activation script → build/)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/build
+# Docs
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/target
+
+# Editor
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.DS_Store
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.idea
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.vscode
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/*.swp
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/*.conda
+
+# fuzz artifacts
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/.mozz_crashes
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/**/fuzz/corpus
+
+# flyctl launch added from backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/.gitignore
+# pixi environments
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/.pixi/*
+!backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/.pixi/config.toml
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/build
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/target
+
+# Cloned simdjson (built via `pixi run build`)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/src/simdjson_ffi/simdjson
+
+# Mojo cache
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/__pycache__
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/*.mojopkg
+
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/.cursor
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/.agents
+
+# Large benchmark datasets (download from cuJSON Google Drive)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/benchmark/datasets/twitter_large_record.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/benchmark/datasets/walmart_large_record.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/benchmark/datasets/wiki_large_record.json
+
+# cuJSON (download on-demand for NVIDIA GPU benchmarks)
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/benchmark/cuJSON
+
+# build directories
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/build
+
+# Example output files
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/output.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/config.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/counter.json
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/gpu_test.json
+
+# build artifacts
+backend/.pixi/build/work/flare-YLDsf4CFm4Y-ME03ejjoGjs/work/json-src/**/json-*
+
+# flyctl launch added from backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/build
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/target
+
+# Cloned simdjson (built via `pixi run build`)
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/src/simdjson_ffi/simdjson
+
+# Mojo cache
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/*.mojopkg
+
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/.agents
+
+# Large benchmark datasets (download from cuJSON Google Drive)
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/benchmark/datasets/twitter_large_record.json
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/benchmark/datasets/walmart_large_record.json
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/benchmark/datasets/wiki_large_record.json
+
+# cuJSON (download on-demand for NVIDIA GPU benchmarks)
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/benchmark/cuJSON
+
+# build directories
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/build
+
+# Example output files
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/output.json
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/config.json
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/counter.json
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/gpu_test.json
+
+# build artifacts
+backend/.pixi/build/work/json-P6Lv2ZYGqbU-ME03ejjoGjs/work/**/json-*
+
+# flyctl launch added from backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/morph-5gwdDb37Fzc-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/morph-CmSI2eIcCW4-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/morph-ZB9b2G5a664-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/morph-pOTttRkKXW8-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/.pixi/config.toml
+
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/.cursor
+
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/*.lock
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/target
+backend/.pixi/build/work/pprint-0X3ut7pugAs-ME03ejjoGjs/work/**/*.mojopkg
+
+# flyctl launch added from backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/sqlite-O-YOgEa1pyM-ME03ejjoGjs/work/**/.pnpm-store
+
+# flyctl launch added from backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/sqlite-q3cCR4tNFyY-ME03ejjoGjs/work/**/.pnpm-store
+
+# flyctl launch added from backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/.agents
+backend/.pixi/build/work/sqlite-wmDbZK-ugE0-ME03ejjoGjs/work/**/.pnpm-store
+
+# flyctl launch added from backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/tempo-xHS_Q74UwjM-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/uuid-ZcBRU45ZSto-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/.gitignore
+# pixi environments
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/.pixi/*
+!backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/.pixi/config.toml
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/*.lock
+
+# Build outputs
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/target
+
+# Mojo cache
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/__pycache__
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/*.mojopkg
+
+# Editor / agent state
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/.cursor
+backend/.pixi/build/work/uuid-tMdgBR6QMzQ-ME03ejjoGjs/work/**/.agents
+
+# flyctl launch added from integtest/.pixi/.gitignore
+integtest/.pixi/**/*
+!integtest/.pixi/**/config.toml
+
+# flyctl launch added from integtest/.pytest_cache/.gitignore
+# Created by pytest automatically.
+integtest/.pytest_cache/**/*
+fly.toml

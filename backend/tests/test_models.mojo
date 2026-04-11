@@ -61,20 +61,20 @@ def test_server_config_defaults() raises:
 
 def test_new_paste_id_non_empty() raises:
     """Checks that new_paste() generates a non-empty UUID id."""
-    var p = new_paste("Test", "content", "python", 7)
+    var p = new_paste("Test", "content", "python", 3600)
     assert_true(p.id.byte_length() > 0)
 
 
 def test_new_paste_id_uuid_format() raises:
     """Checks that new_paste() id follows UUID format (length 36, hyphens)."""
-    var p = new_paste("Test", "content", "python", 7)
+    var p = new_paste("Test", "content", "python", 3600)
     assert_equal(p.id.byte_length(), 36)
     assert_true(p.id.find("-") >= 0)
 
 
 def test_new_paste_fields() raises:
     """Checks that new_paste() copies title, content, and language correctly."""
-    var p = new_paste("My Title", "some code", "rust", 7)
+    var p = new_paste("My Title", "some code", "rust", 3600)
     assert_equal(p.title, "My Title")
     assert_equal(p.content, "some code")
     assert_equal(p.language, "rust")
@@ -82,31 +82,32 @@ def test_new_paste_fields() raises:
 
 
 def test_new_paste_timestamps() raises:
-    """Checks that new_paste() sets created_at near now and expires_at in the future."""
+    """Checks that new_paste() sets created_at near now and expires_at ~7 days ahead."""
     var before = Int(Timestamp.now().unix_secs())
-    var p = new_paste("T", "c", "plain", 7)
+    var p = new_paste("T", "c", "plain", 604800)  # 7 days in seconds
     var after = Int(Timestamp.now().unix_secs())
 
     assert_true(p.created_at >= before)
     assert_true(p.created_at <= after)
     assert_true(p.expires_at > p.created_at)
-    # expires_at should be ~7 days ahead (604800 seconds)
+    # expires_at should be exactly 604800 seconds ahead
     var diff = p.expires_at - p.created_at
-    assert_true(diff >= 604700)
-    assert_true(diff <= 604900)
+    assert_true(diff >= 604799)
+    assert_true(diff <= 604801)
 
 
-def test_new_paste_ttl_zero_uses_one() raises:
-    """Checks that new_paste() with ttl_days=1 sets a non-negative expiry offset."""
-    var p = new_paste("T", "c", "plain", 1)
+def test_new_paste_ttl_one_day() raises:
+    """Checks that new_paste() with 86400 s (1 day) sets the correct expiry offset."""
+    var p = new_paste("T", "c", "plain", 86400)
     var diff = p.expires_at - p.created_at
-    assert_true(diff >= 86000)  # ~1 day
+    assert_true(diff >= 86399)
+    assert_true(diff <= 86401)
 
 
 def test_new_paste_unique_ids() raises:
     """Checks that successive new_paste() calls produce distinct IDs."""
-    var p1 = new_paste("A", "x", "plain", 1)
-    var p2 = new_paste("B", "y", "plain", 1)
+    var p1 = new_paste("A", "x", "plain", 3600)
+    var p2 = new_paste("B", "y", "plain", 3600)
     assert_true(p1.id != p2.id)
 
 
@@ -119,6 +120,6 @@ def main() raises:
     test_new_paste_id_uuid_format()
     test_new_paste_fields()
     test_new_paste_timestamps()
-    test_new_paste_ttl_zero_uses_one()
+    test_new_paste_ttl_one_day()
     test_new_paste_unique_ids()
     print("test_models: all tests passed")

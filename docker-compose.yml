@@ -8,7 +8,7 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .          # repo root — Dockerfile is at root
       dockerfile: Dockerfile
     container_name: mobin-backend
     restart: unless-stopped
@@ -16,17 +16,18 @@ services:
       - "8080:8080"   # HTTP API
       - "8081:8081"   # WebSocket feed
     environment:
-      PORT: "8080"
-      WS_PORT: "8081"
-      DB_PATH: "/app/data/mobin.db"
+      PORT:     "8080"
+      WS_PORT:  "8081"
+      DB_PATH:  "/app/data/mobin.db"
+      TTL_SECS: "2592000"
     volumes:
       - backend-data:/app/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
-      interval: 10s
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 120s
 
   frontend:
     build:

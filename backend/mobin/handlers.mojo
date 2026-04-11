@@ -34,19 +34,20 @@ struct CreateRequest(Defaultable, Movable):
         title:    Optional title (defaults to 'Untitled').
         content:  Paste body text or code (required).
         language: Syntax highlight hint (defaults to 'plain').
-        ttl_days: Expiry in days (defaults to 7).
+        ttl_secs: Expiry in seconds (defaults to 604800 = 7 days,
+                  max 2592000 = 30 days).
     """
 
     var title: String
     var content: String
     var language: String
-    var ttl_days: Int
+    var ttl_secs: Int
 
     def __init__(out self):
         self.title = ""
         self.content = ""
         self.language = "plain"
-        self.ttl_days = 7
+        self.ttl_secs = 3600  # 1 hour
 
 
 @fieldwise_init
@@ -61,20 +62,20 @@ struct UpdateRequest(Defaultable, Movable):
         title:    New title (unchanged if empty string).
         content:  New paste body (unchanged if empty string).
         language: New syntax-highlight hint (unchanged if empty string).
-        ttl_days: If > 0, reset the paste expiry to now + ttl_days days
-                  (capped at 365). If 0, keep the current expiry.
+        ttl_secs: If > 0, reset the paste expiry to now + ttl_secs seconds
+                  (capped at 2592000 = 30 days). If 0, keep current expiry.
     """
 
     var title: String
     var content: String
     var language: String
-    var ttl_days: Int
+    var ttl_secs: Int
 
     def __init__(out self):
         self.title = ""
         self.content = ""
         self.language = ""
-        self.ttl_days = 0
+        self.ttl_secs = 0
 
 
 # ── Response helpers ──────────────────────────────────────────────────────────
@@ -220,8 +221,10 @@ def create_paste_handler(
                 Status.BAD_REQUEST, "content must not contain null bytes"
             )
 
-    var ttl = cr.ttl_days if cr.ttl_days > 0 else cfg.ttl_days
-    ttl = min(ttl, 365)
+    # Default to server config (in days → seconds); cap at 30 days.
+    comptime _MAX_TTL_SECS = 30 * 86400
+    var ttl = cr.ttl_secs if cr.ttl_secs > 0 else cfg.ttl_days * 86400
+    ttl = min(ttl, _MAX_TTL_SECS)
 
     var paste = new_paste(cr.title, cr.content, cr.language, ttl)
     # Generate an unguessable delete token — returned once at create time
@@ -357,10 +360,10 @@ def update_paste_handler(
             )
 
     # Recompute expiry if caller explicitly requested a new TTL.
+    comptime _MAX_TTL_SECS = 30 * 86400
     var new_expires_at = current.expires_at
-    if ur.ttl_days > 0:
-        var ttl = min(ur.ttl_days, 365)
-        new_expires_at = Int(Timestamp.now().unix_secs()) + ttl * 86400
+    if ur.ttl_secs > 0:
+        new_expires_at = Int(Timestamp.now().unix_secs()) + min(ur.ttl_secs, _MAX_TTL_SECS)
 
     db_update(db, paste_id, new_title, new_content, new_language, new_expires_at)
 

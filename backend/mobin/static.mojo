@@ -127,11 +127,14 @@ padding:.6rem;text-align:center}
               <option value="markdown">Markdown</option>
             </select>
             <select id="ttl">
-              <option value="1">1 day</option>
-              <option value="7" selected>7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
+              <option value="60">1 minute</option>
+              <option value="300">5 minutes</option>
+              <option value="3600" selected>1 hour</option>
+              <option value="43200">12 hours</option>
+              <option value="86400">1 day</option>
+              <option value="345600">4 days</option>
+              <option value="604800">7 days</option>
+              <option value="2592000">30 days</option>
             </select>
           </div>
           <button type="submit" id="create-btn">Create Paste</button>
@@ -177,7 +180,8 @@ padding:.6rem;text-align:center}
 <div class="toast" id="toast"></div>
 <script>
 const API = (window.location.protocol + '//' + window.location.hostname + ':8080');
-const WS_URL = ('ws://' + window.location.hostname + ':8081/feed');
+const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const WS_URL = (WS_SCHEME + '://' + window.location.hostname + ':8081/feed');
 let feedPastes = [];
 let ws = null;
 let pollTimer = null;
@@ -204,16 +208,36 @@ async function loadStats(){
 
 // ── Feed ──
 function addToFeed(paste){
+  const now=Math.floor(Date.now()/1000);
+  if(paste.expires_at&&paste.expires_at<=now) return;
   if(feedPastes.find(p=>p.id===paste.id)) return;
   feedPastes.unshift(paste);
   if(feedPastes.length>50) feedPastes.pop();
   renderFeed();
 }
 
+function purgeExpiredFromFeed(){
+  const now=Math.floor(Date.now()/1000);
+  const before=feedPastes.length;
+  feedPastes=feedPastes.filter(p=>!p.expires_at||p.expires_at>now);
+  if(feedPastes.length!==before) renderFeed();
+}
+
+async function initFeed(){
+  try{
+    const r=await fetch(API+'/pastes?limit=20');
+    if(!r.ok) return;
+    const d=await r.json();
+    (d.pastes||[]).slice().reverse().forEach(addToFeed);
+  }catch(e){}
+}
+
 function renderFeed(){
+  const now=Math.floor(Date.now()/1000);
+  const live=feedPastes.filter(p=>!p.expires_at||p.expires_at>now);
   const el=document.getElementById('feed-list');
-  if(feedPastes.length===0){el.innerHTML='<div class="feed-empty">Waiting for pastes...</div>';return;}
-  el.innerHTML=feedPastes.map(p=>`
+  if(live.length===0){el.innerHTML='<div class="feed-empty">Waiting for pastes...</div>';return;}
+  el.innerHTML=live.map(p=>`
     <div class="paste-card" onclick="viewPaste('${p.id}')">
       <div class="meta">
         <span class="ptitle">${esc(p.title||'Untitled')}</span>
@@ -224,6 +248,14 @@ function renderFeed(){
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function fmtExpiry(unix){
+  const diff=unix-Math.floor(Date.now()/1000);
+  if(diff<=0) return 'expired';
+  if(diff<3600) return 'in '+Math.ceil(diff/60)+' min';
+  if(diff<86400) return 'in '+Math.ceil(diff/3600)+' hr';
+  return new Date(unix*1000).toLocaleDateString();
+}
 
 // ── WebSocket ──
 function connectWS(){
@@ -275,7 +307,7 @@ document.getElementById('create-form').addEventListener('submit',async(e)=>{
     title:document.getElementById('title').value||'Untitled',
     content:document.getElementById('content').value,
     language:document.getElementById('language').value,
-    ttl_days:parseInt(document.getElementById('ttl').value),
+    ttl_secs:parseInt(document.getElementById('ttl').value,10),
   };
   try{
     const r=await fetch(API+'/paste',{
@@ -303,12 +335,11 @@ async function viewPaste(id){
     const detail=document.getElementById('detail');
     detail.style.display='block';
     document.getElementById('detail-content').textContent=p.content||'';
-    const exp=new Date(p.expires_at*1000).toLocaleDateString();
     document.getElementById('detail-meta').innerHTML=
       `<span><b>${esc(p.title||'Untitled')}</b></span>`+
       `<span>${esc(p.language||'plain')}</span>`+
       `<span>👁 ${p.views||0} views</span>`+
-      `<span>Expires ${exp}</span>`;
+      `<span>Expires ${fmtExpiry(p.expires_at)}</span>`;
     window.history.pushState({},'','/paste/'+id);
   }catch(ex){toast('Error loading paste');}
 }
@@ -326,7 +357,9 @@ function copyContent(){
 
 // ── Init ──
 loadStats();
+initFeed();
 setInterval(loadStats,30000);
+setInterval(purgeExpiredFromFeed,30000);
 connectWS();
 // Handle direct URL like /paste/<id>
 if(window.location.pathname.startsWith('/paste/')){

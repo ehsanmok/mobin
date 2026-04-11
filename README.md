@@ -3,8 +3,8 @@
 A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path — the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
 
 - **Backend**: Mojo (`flare` HTTP + WS, `sqlite`, `morph` JSON, `uuid`, `tempo`)
-- **Frontend**: Vanilla JS + nginx — syntax highlighting, live feed via WebSocket
-- **Infra**: Docker Compose, `pixi` dependency management
+- **Frontend**: Vanilla JS + nginx — syntax highlighting, live feed via WebSocket with auto-removal of expired pastes
+- **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions → Fly.io CD
 
 ---
 
@@ -62,37 +62,55 @@ PRAGMA synchronous  = NORMAL;
 
 Each HTTP request and each WS connection gets its own `Database` handle that is closed when the handler returns (RAII).
 
-### Mojo package layout
+### Repo layout
 
 ```
-backend/
-├── main.mojo               ← entry point (fork, bind, serve)
-├── mobin/
-│   ├── __init__.mojo       ← public re-exports
-│   ├── models.mojo         ← Paste, PasteStats, ServerConfig structs
-│   ├── db.mojo             ← SQLite helpers (init_db, db_create, …)
-│   ├── handlers.mojo       ← per-route handler functions
-│   ├── router.mojo         ← URL dispatch (method × path → handler)
-│   ├── feed.mojo           ← WebSocket live-feed loop
-│   └── static.mojo         ← embedded frontend HTML
-└── tests/
-    ├── test_models.mojo
-    ├── test_db.mojo
-    └── test_router.mojo
+mobin/
+├── pixi.toml               ← root manifest — all Mojo deps + tasks (source of truth)
+├── pixi.lock               ← pinned dependency graph
+├── Dockerfile              ← production image (build context = repo root, used by Fly.io)
+├── fly.toml                ← Fly.io app config
+├── .github/workflows/
+│   └── deploy.yml          ← push-to-main → fly deploy (GitHub Actions)
+├── backend/
+│   ├── main.mojo           ← entry point (fork, bind, serve)
+│   ├── entrypoint.sh       ← Docker entrypoint (optional Litestream wrapping)
+│   ├── litestream.yml      ← Litestream replica config
+│   ├── mobin/
+│   │   ├── __init__.mojo   ← public re-exports
+│   │   ├── models.mojo     ← Paste, PasteStats, ServerConfig structs
+│   │   ├── db.mojo         ← SQLite helpers (init_db, CRUD, expiry purge)
+│   │   ├── handlers.mojo   ← per-route handler functions
+│   │   ├── router.mojo     ← URL dispatch (method × path → handler)
+│   │   ├── feed.mojo       ← WebSocket live-feed loop + periodic expiry sweep
+│   │   └── static.mojo     ← embedded frontend HTML (served by backend directly)
+│   └── tests/
+│       ├── test_models.mojo
+│       ├── test_db.mojo
+│       └── test_router.mojo
+└── frontend/
+    └── src/
+        └── index.html      ← full-featured frontend (served by nginx in dev Compose)
 ```
 
 ---
 
 ## Quick start — local
 
+All commands are run from the **repo root** (where `pixi.toml` lives):
+
 ```bash
-cd backend
 pixi install          # resolve + install all Mojo dependencies
-pixi run build        # compile main.mojo → ./mobin-backend
-./mobin-backend       # start on :8080 (HTTP) and :8081 (WS)
+pixi run run-dev      # start backend on :8080 (HTTP) and :8081 (WS)
 ```
 
-Open `http://localhost:8080`.
+Open `http://localhost:8080` — the backend serves the embedded frontend directly.
+
+To run the full nginx-fronted UI simultaneously:
+
+```bash
+pixi run serve-frontend   # static frontend on :3001 (in a second terminal)
+```
 
 Environment variables (all optional):
 
@@ -102,7 +120,7 @@ Environment variables (all optional):
 | `WS_PORT` | `8081` | WebSocket server port |
 | `DB_PATH` | `data/mobin.db` | SQLite database file path |
 | `MAX_SIZE` | `65536` | Max paste size in bytes |
-| `TTL_DAYS` | `30` | Default paste expiry in days |
+| `TTL_SECS` | `2592000` | Server-side default paste expiry in seconds (30 days) |
 
 ---
 
@@ -121,14 +139,16 @@ docker compose up --build
 
 ---
 
-## Backend commands (`cd backend`)
+## Commands (all from repo root)
 
 | Command | What it does |
 |---------|-------------|
 | `pixi install` | Install all Mojo library dependencies into `.pixi/envs/default/` |
-| `pixi run build` | Compile `main.mojo` to a standalone `mobin-backend` binary |
-| `pixi run run` | Build then immediately start the backend |
-| `pixi run run-dev` | Run with `mojo run` (no compile step, faster iteration) |
+| `pixi run serve` | Start the backend (used by Docker / Fly.io entrypoint) |
+| `pixi run run-dev` | Run with `mojo run` — no compile step, fastest iteration |
+| `pixi run build` | Compile `backend/main.mojo` to a standalone `mobin-backend` binary |
+| `pixi run run` | Build then immediately start the backend binary |
+| `pixi run serve-frontend` | Serve `frontend/src/` on `:3001` via Python HTTP (dev only) |
 | `pixi run tests` | Run all three unit-test suites (`test_models`, `test_db`, `test_router`) |
 | `pixi run test-models` | Unit tests for `Paste` / `PasteStats` / `ServerConfig` / `new_paste()` |
 | `pixi run test-db` | Unit tests for all SQLite helpers (`init_db`, CRUD, stats, expiry) |
@@ -168,6 +188,23 @@ Set `MOBIN_URL=http://my-server:8080` to run the test suite against an already-r
 
 All responses include `Access-Control-Allow-Origin: *`.
 
+### TTL options
+
+Paste lifetime is specified in **seconds** via `ttl_secs`. The UI exposes these presets:
+
+| UI label | `ttl_secs` |
+|----------|-----------|
+| 1 minute | `60` |
+| 5 minutes | `300` |
+| **1 hour (default)** | **`3600`** |
+| 12 hours | `43200` |
+| 1 day | `86400` |
+| 4 days | `345600` |
+| 7 days | `604800` |
+| 30 days (max) | `2592000` |
+
+Any value above `2592000` (30 days) is clamped server-side. Expired pastes are removed from the live feed in real time and purged from the database every 60 seconds.
+
 ### Create a paste
 
 ```bash
@@ -177,7 +214,7 @@ curl -X POST http://localhost:8080/paste \
     "title":    "hello world",
     "content":  "print(\"hello\")",
     "language": "python",
-    "ttl_days": 7
+    "ttl_secs": 3600
   }'
 ```
 
@@ -244,7 +281,7 @@ Items marked ✅ have been implemented. Remaining items are open improvements.
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **Paste editing** | ✅ Done | `PUT /paste/{id}` with `X-Delete-Token`; partial updates (omit any field to keep current value); optional `ttl_days` to reset expiry |
+| **Paste editing** | ✅ Done | `PUT /paste/{id}` with `X-Delete-Token`; partial updates (omit any field to keep current value); optional `ttl_secs` to reset expiry |
 | **Expiry enforcement** | ✅ Done | Background sweep runs every 60 s in the WS process; startup purge cleans rows that expired while the service was down |
 | **Keyset pagination** | ✅ Done | `GET /pastes?before=<unix_ts>` for cursor-stable pages (no row skips under concurrent inserts); classic `offset=N` still supported |
 | **Paste search** | ✅ Done | `GET /pastes?q=<term>` filters by case-insensitive substring match over title and content (SQLite LIKE) |
@@ -260,7 +297,7 @@ Items marked ✅ have been implemented. Remaining items are open improvements.
 ```
 PUT /paste/{id}
   Headers:  X-Delete-Token: <token>
-  Body:     {"title":"…","content":"…","language":"…","ttl_days":7}
+  Body:     {"title":"…","content":"…","language":"…","ttl_secs":3600}
             (all fields optional — omitted fields keep their current value)
   Response: updated Paste JSON (same shape as GET, no delete_token)
 
@@ -600,6 +637,37 @@ The included rate limit config allows 20 write requests (POST/DELETE) per IP per
 
 ## Deployment
 
+### Option A — Fly.io + GitHub Actions (recommended)
+
+#### Continuous deployment (push-to-main)
+
+Once the app is created and secrets are set (see first deploy below), every merge to `main` triggers an automatic deploy via `.github/workflows/deploy.yml`:
+
+1. Go to your repo on GitHub → **Settings → Secrets and variables → Actions**.
+2. Add a secret named `FLY_API_TOKEN` — get the value with:
+   ```bash
+   fly tokens create deploy -x 999999h
+   ```
+3. Push to `main`. GitHub Actions will run `flyctl deploy --remote-only` and your new version will be live within ~1–2 minutes.
+
+```yaml
+# .github/workflows/deploy.yml (already committed)
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+```
+
+#### First deploy (one-time setup)
+
 ### Option A — Fly.io (easiest, free tier available)
 
 [Fly.io](https://fly.io) is a platform that runs Docker containers close to your users. It handles TLS, health checks, and rolling deploys. The free tier includes enough compute to run mobin at no cost.
@@ -620,7 +688,7 @@ fly auth login    # opens a browser — sign up or log in
 **First deploy**
 
 ```bash
-cd /path/to/mobin
+cd /path/to/mobin   # repo root — fly.toml and Dockerfile are both here
 
 # 1. Create the app (reads fly.toml, picks a name, does NOT deploy yet)
 fly launch --no-deploy --copy-config
@@ -631,13 +699,18 @@ fly launch --no-deploy --copy-config
 fly volumes create mobin_data --size 1 --region ord
 # Use the same region you picked above
 
-# 3. Deploy
-fly deploy
-# This builds the Docker image, pushes it to Fly's registry, and starts the VM.
-# First deploy takes ~3 minutes because it downloads the Mojo toolchain.
-# Subsequent deploys take ~1 minute (layers are cached).
+# 3. (Optional) add Litestream backup secrets — see Litestream section below
+fly secrets set \
+  LITESTREAM_REPLICA_URL="s3://mobin-backup/mobin.db?endpoint=https://<account-id>.r2.cloudflarestorage.com" \
+  LITESTREAM_ACCESS_KEY_ID="<key>" \
+  LITESTREAM_SECRET_ACCESS_KEY="<secret>"
 
-# 4. Open in browser
+# 4. Deploy — build context is repo root, Dockerfile is at root
+fly deploy
+# First deploy: ~3–5 min (downloads Mojo toolchain + installs pixi deps)
+# Subsequent deploys: ~1–2 min (Docker layer cache hits)
+
+# 5. Open in browser
 fly open
 ```
 
@@ -665,8 +738,11 @@ fly deploy
 **Updating mobin**
 
 ```bash
+# Manually:
 git pull
-fly deploy   # that's it
+fly deploy
+
+# Automatically: just merge a PR to main — GitHub Actions deploys for you.
 ```
 
 ---
@@ -735,13 +811,14 @@ Docker Compose performs a rolling restart — the old container stays up until t
 
 ## Summary: which deployment to pick?
 
-| | Fly.io | VPS + Docker Compose |
-|-|--------|---------------------|
+| | Fly.io + GitHub Actions | VPS + Docker Compose |
+|-|------------------------|---------------------|
 | **Cost** | Free tier available | ~4 €/month |
 | **TLS** | Automatic (Fly handles it) | Automatic (Caddy handles it) |
-| **Setup time** | ~10 min | ~20 min |
+| **Setup time** | ~15 min | ~20 min |
+| **CD on push** | ✅ Built-in (GitHub Actions) | Manual `docker compose up` |
 | **Persistent storage** | Fly volumes (1 GB free) | Server disk |
-| **Litestream backup** | `fly secrets set` + `fly deploy` | Uncomment env vars in compose |
+| **Litestream backup** | `fly secrets set` + auto-deploy | Uncomment env vars in compose |
 | **SSH access** | `fly ssh console` | `ssh root@ip` |
 | **Scaling** | `fly scale memory` / `fly scale count` | Add more servers manually |
 | **Best for** | Getting something live quickly | Full control, cost predictability |

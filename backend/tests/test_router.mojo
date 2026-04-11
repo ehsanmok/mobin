@@ -117,7 +117,7 @@ def test_create_paste() raises:
     """POST /paste with valid JSON creates a paste and returns 200."""
     var db = _open_db()
     var cfg = _cfg()
-    var body = '{"title":"Hello","content":"print(42)","language":"python","ttl":7}'
+    var body = '{"title":"Hello","content":"print(42)","language":"python","ttl_secs":604800}'
     var resp = router(_post("/paste", body), db, cfg)
     assert_equal(resp.status, Status.OK)
     var resp_body = _body_str(resp)
@@ -128,7 +128,7 @@ def test_create_paste_empty_content() raises:
     """POST /paste with empty content returns 400."""
     var db = _open_db()
     var cfg = _cfg()
-    var body = '{"title":"T","content":"","language":"plain","ttl_days":7}'
+    var body = '{"title":"T","content":"","language":"plain","ttl_secs":604800}'
     var resp = router(_post("/paste", body), db, cfg)
     assert_equal(resp.status, Status.BAD_REQUEST)
 
@@ -138,7 +138,7 @@ def test_create_and_get_paste() raises:
     var db = _open_db()
     var cfg = _cfg()
 
-    var create_body = '{"title":"My Paste","content":"hello world","language":"plain","ttl":7}'
+    var create_body = '{"title":"My Paste","content":"hello world","language":"plain","ttl_secs":604800}'
     var create_resp = router(_post("/paste", create_body), db, cfg)
     assert_equal(create_resp.status, Status.OK)
 
@@ -181,7 +181,7 @@ def test_delete_paste() raises:
     var db = _open_db()
     var cfg = _cfg()
 
-    var create_body = '{"title":"T","content":"x","language":"plain","ttl":7}'
+    var create_body = '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
     var create_resp = router(_post("/paste", create_body), db, cfg)
     var resp_str = _body_str(create_resp)
     var paste_id    = _extract_field(resp_str, "id")
@@ -226,7 +226,7 @@ def test_list_pagination() raises:
 
     # Create 4 pastes
     for i in range(4):
-        var b = '{"title":"T","content":"content' + String(i) + '","language":"plain","ttl":7}'
+        var b = '{"title":"T","content":"content' + String(i) + '","language":"plain","ttl_secs":604800}'
         _ = router(_post("/paste", b), db, cfg)
 
     var resp = router(_get("/pastes?limit=2"), db, cfg)
