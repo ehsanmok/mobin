@@ -2,6 +2,8 @@
 
 A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path — the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
 
+**Live demo: [mobin.fly.dev](https://mobin.fly.dev/)**
+
 - **Backend**: Mojo (`flare` HTTP + WS, `sqlite`, `morph` JSON, `uuid`, `tempo`)
 - **Frontend**: Vanilla JS + nginx — syntax highlighting, live feed via WebSocket with auto-removal of expired pastes
 - **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions → Fly.io CD
@@ -16,7 +18,7 @@ graph TD
         UI[HTML / JS frontend]
     end
 
-    subgraph Docker / local
+    subgraph "Docker / Fly.io"
         direction TB
         NGINX[nginx :3000\nfrontend]
 
@@ -40,6 +42,16 @@ graph TD
     WS -->|per-connection connection| SQLITE
 ```
 
+### Production URL routing (Fly.io)
+
+In production (HTTPS), the frontend detects the protocol and adjusts:
+
+- **API** → same origin (`https://mobin.fly.dev/…`) — Fly.io's `[http_service]` routes port 443 to internal port 8080
+- **WebSocket** → `wss://mobin.fly.dev:8081/feed` — Fly.io's `[[services]]` terminates TLS on port 8081 via a dedicated IPv4
+- **Fallback** → if WS is unreachable, the frontend polls `GET /pastes` every 3 seconds
+
+In local dev, explicit ports are used: `:8080` for API, `:8081` for WS.
+
 ### Process model
 
 `main()` calls `fork()` **once** before binding either port:
@@ -62,35 +74,59 @@ PRAGMA synchronous  = NORMAL;
 
 Each HTTP request and each WS connection gets its own `Database` handle that is closed when the handler returns (RAII).
 
+#### Stats table
+
+Stats use a dedicated `stats` table with monotonically-increasing counters:
+
+| Counter | Incremented when | Never decreases |
+|---------|-----------------|----------------|
+| `total_pastes` | A paste is created | Even after paste expires or is purged |
+| `total_views` | A paste is viewed | Even after paste expires or is purged |
+
+The `today` counter is computed live from the `pastes` table (`WHERE created_at > now - 86400`). A backfill migration seeds the `stats` table from existing data when upgrading from an older schema.
+
 ### Repo layout
 
 ```
 mobin/
-├── pixi.toml               ← root manifest — all Mojo deps + tasks (source of truth)
-├── pixi.lock               ← pinned dependency graph
-├── Dockerfile              ← production image (build context = repo root, used by Fly.io)
-├── fly.toml                ← Fly.io app config
+├── pixi.toml                  ← root manifest — all Mojo deps + tasks
+├── pixi.lock                  ← pinned dependency graph
+├── Dockerfile                 ← production image (AOT compile with JIT fallback)
+├── fly.toml                   ← Fly.io app config (256 MB shared-cpu-1x)
+├── docker-compose.yml         ← local dev stack (backend + frontend + locust)
+├── docker-compose.override.yml← ARM64 Mac override (no QEMU emulation)
+├── docker-compose.prod.yml    ← production stack with Caddy TLS
+├── Caddyfile                  ← Caddy reverse proxy + optional rate limiting
 ├── .github/workflows/
-│   └── deploy.yml          ← push-to-main → fly deploy (GitHub Actions)
+│   └── deploy.yml             ← push-to-main → fly deploy (GitHub Actions)
 ├── backend/
-│   ├── main.mojo           ← entry point (fork, bind, serve)
-│   ├── entrypoint.sh       ← Docker entrypoint (optional Litestream wrapping)
-│   ├── litestream.yml      ← Litestream replica config
+│   ├── main.mojo              ← entry point (fork, bind, serve)
+│   ├── entrypoint.sh          ← Docker entrypoint (AOT/JIT, optional Litestream)
+│   ├── litestream.yml         ← Litestream replica config
 │   ├── mobin/
-│   │   ├── __init__.mojo   ← public re-exports
-│   │   ├── models.mojo     ← Paste, PasteStats, ServerConfig structs
-│   │   ├── db.mojo         ← SQLite helpers (init_db, CRUD, expiry purge)
-│   │   ├── handlers.mojo   ← per-route handler functions
-│   │   ├── router.mojo     ← URL dispatch (method × path → handler)
-│   │   ├── feed.mojo       ← WebSocket live-feed loop + periodic expiry sweep
-│   │   └── static.mojo     ← embedded frontend HTML (served by backend directly)
+│   │   ├── __init__.mojo      ← public re-exports
+│   │   ├── models.mojo        ← Paste, PasteStats, ServerConfig structs
+│   │   ├── db.mojo            ← SQLite helpers (CRUD, stats table, expiry purge)
+│   │   ├── handlers.mojo      ← per-route handler functions
+│   │   ├── router.mojo        ← URL dispatch (method × path → handler)
+│   │   ├── feed.mojo          ← WebSocket live-feed loop + periodic expiry sweep
+│   │   └── static.mojo        ← embedded frontend HTML (served by backend directly)
 │   └── tests/
 │       ├── test_models.mojo
 │       ├── test_db.mojo
 │       └── test_router.mojo
-└── frontend/
-    └── src/
-        └── index.html      ← full-featured frontend (served by nginx in dev Compose)
+├── frontend/
+│   └── src/
+│       └── index.html         ← full-featured frontend (served by nginx in dev)
+└── integtest/
+    ├── pixi.toml              ← test dependencies (pytest, httpx, websockets, locust)
+    ├── Dockerfile             ← locust container image
+    ├── .dockerignore          ← excludes host .pixi/ from Docker context
+    ├── test_api.py            ← 32 API + WebSocket integration tests
+    ├── test_frontend.py       ← 6 frontend container smoke tests
+    ├── test_health.py         ← 7 health/CORS tests
+    ├── locustfile.py          ← Locust load test scenarios
+    └── conftest.py            ← shared fixtures (base URL, backend lifecycle)
 ```
 
 ---
@@ -137,6 +173,10 @@ docker compose up --build
 | `http://localhost:8081` | WebSocket feed (direct) |
 | `http://localhost:8089` | Locust load-test UI |
 
+> **Mac ARM64 (M-series):** The repo includes a `docker-compose.override.yml` that
+> builds natively for `linux/arm64`, avoiding slow QEMU emulation. Docker Compose
+> merges it automatically — no extra flags needed.
+
 ---
 
 ## Commands (all from repo root)
@@ -159,15 +199,23 @@ docker compose up --build
 
 ## Integration tests (`cd integtest`)
 
-The integration suite starts a **real backend subprocess** with a temporary SQLite database, waits for `/health` to respond, runs all tests, then terminates the backend and its forked child.
+The integration suite runs **45 tests** against the live Docker Compose stack:
 
 | Command | What it does |
 |---------|-------------|
 | `pixi install` | Install Python test dependencies (`pytest`, `httpx`, `websockets`, `locust`) |
-| `pixi run test` | Run HTTP + WebSocket integration tests against a freshly started backend |
-| `pixi run test-all` | Same as above but includes any additional test files |
+| `pixi run test` | Run HTTP + WebSocket integration tests against a running backend |
+| `pixi run test-all` | Run all tests including frontend container smoke tests |
 | `pixi run load-test` | Headless Locust: 50 users, 5/s ramp, 60 s, against `http://localhost:8080` |
 | `pixi run load-ui` | Locust with web UI on `:8089` — set users and run time interactively |
+
+Test breakdown:
+
+| File | Tests | Coverage |
+|------|-------|---------|
+| `test_api.py` | 32 | CRUD, pagination, search, stats, WebSocket live feed |
+| `test_frontend.py` | 6 | nginx serves HTML, SPA routing, API reachability, CORS |
+| `test_health.py` | 7 | Health probe, stats types, CORS headers, OPTIONS preflight |
 
 Set `MOBIN_URL=http://my-server:8080` to run the test suite against an already-running instance instead of spawning a local backend.
 
@@ -179,14 +227,33 @@ Set `MOBIN_URL=http://my-server:8080` to run the test suite against an already-r
 |--------|------|-------------|
 | `POST` | `/paste` | Create a new paste |
 | `GET` | `/paste/{id}` | Fetch paste by UUID (increments view count) |
+| `PUT` | `/paste/{id}` | Update paste (requires `X-Delete-Token` header) |
 | `DELETE` | `/paste/{id}` | Delete paste (requires `X-Delete-Token` header) |
-| `GET` | `/pastes` | List pastes (`?limit=20&offset=0`) |
-| `GET` | `/stats` | Global stats (`total`, `today`, `total_views`) |
+| `GET` | `/pastes` | List pastes (`?limit=20&offset=0`, `?q=term`, `?before=ts`) |
+| `GET` | `/stats` | Global stats: `total` (all-time), `today` (24h), `total_views` (cumulative) |
 | `GET` | `/health` | Liveness probe — returns `{"status":"ok"}` |
 | `GET` | `/` | Serve frontend HTML |
 | `OPTIONS` | `*` | CORS preflight — returns 204 with `Access-Control-Allow-*` headers |
 
 All responses include `Access-Control-Allow-Origin: *`.
+
+### Stats
+
+The `/stats` endpoint returns cumulative counters that **never decrease**:
+
+```json
+{
+  "total": 42,
+  "today": 5,
+  "total_views": 128
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `total` | All-time pastes created (survives expiry and purge) |
+| `today` | Pastes created in the last 24 hours |
+| `total_views` | Cumulative view count across all pastes (survives expiry and purge) |
 
 ### TTL options
 
@@ -255,6 +322,8 @@ Connect to `ws://localhost:8081/feed`. Each new paste is pushed as a JSON object
 websocat ws://localhost:8081/feed
 ```
 
+In production: `wss://mobin.fly.dev:8081/feed` (TLS terminated by Fly.io).
+
 ---
 
 ## Performance
@@ -281,33 +350,17 @@ Items marked ✅ have been implemented. Remaining items are open improvements.
 
 | Area | Status | Notes |
 |------|--------|-------|
-| **Paste editing** | ✅ Done | `PUT /paste/{id}` with `X-Delete-Token`; partial updates (omit any field to keep current value); optional `ttl_secs` to reset expiry |
-| **Expiry enforcement** | ✅ Done | Background sweep runs every 60 s in the WS process; startup purge cleans rows that expired while the service was down |
-| **Keyset pagination** | ✅ Done | `GET /pastes?before=<unix_ts>` for cursor-stable pages (no row skips under concurrent inserts); classic `offset=N` still supported |
-| **Paste search** | ✅ Done | `GET /pastes?q=<term>` filters by case-insensitive substring match over title and content (SQLite LIKE) |
+| **Paste editing** | ✅ Done | `PUT /paste/{id}` with `X-Delete-Token`; partial updates; optional `ttl_secs` to reset expiry |
+| **Expiry enforcement** | ✅ Done | Background sweep every 60 s; startup purge cleans rows that expired while the service was down |
+| **Keyset pagination** | ✅ Done | `GET /pastes?before=<unix_ts>` for cursor-stable pages; classic `offset=N` still supported |
+| **Paste search** | ✅ Done | `GET /pastes?q=<term>` filters by case-insensitive substring match (SQLite LIKE) |
+| **Monotonic stats** | ✅ Done | Stats never decrease on paste expiry — dedicated `stats` table with cumulative counters |
+| **Production deploy** | ✅ Done | AOT-compiled binary on Fly.io (256 MB, shared-cpu-1x) with dedicated IPv4 for WS |
 | **Authentication** | Not planned | Pastes are intentionally public; delete token is the only ownership proof |
-| **WS child death** | Open | After 10 retries the live feed goes silent; a `/ws/health` probe or HTTP-parent restart could alert the user |
+| **WS child death** | Open | After 10 retries the live feed goes silent; a `/ws/health` probe could alert the user |
 | **Single-region SQLite** | Open | One writer; horizontal scaling requires Turso/libSQL or Postgres |
 | **Rate limiting** | Partial | Caddy rate-limits by IP; no per-paste-creator quotas |
 | **Full-text search** | Open | Current LIKE search is `O(n)` per query; SQLite FTS5 would be faster at scale |
-| **Keyset + search combo** | Open | `?q=&before=` currently ignores `before` when `offset`-less keyset is used — the two filters compose but paginating a search result set requires client tracking of the last `created_at` |
-
-#### New API surface (v0.2)
-
-```
-PUT /paste/{id}
-  Headers:  X-Delete-Token: <token>
-  Body:     {"title":"…","content":"…","language":"…","ttl_secs":3600}
-            (all fields optional — omitted fields keep their current value)
-  Response: updated Paste JSON (same shape as GET, no delete_token)
-
-GET /pastes?q=hello&limit=20
-  Returns only pastes whose title or content contains "hello" (case-insensitive)
-
-GET /pastes?before=1775000000&limit=20
-  Returns up to 20 pastes with created_at < 1775000000, newest first.
-  Response includes "next_before":<unix_ts> when more pages exist.
-```
 
 ### Mojo DX friction (things the language/libs should fix)
 
@@ -325,21 +378,10 @@ var paste_id = String(unsafe_from_utf8=path.as_bytes()[_PREFIX.byte_length():])
 
 # handlers.mojo — parse a query-string value
 val_str = String(unsafe_from_utf8=query.as_bytes()[start:end])
-
-# morph — forward raw UTF-8 continuation bytes  
-out += String(unsafe_from_utf8=data[i : i + seq_len])
-```
-
-**Python equivalent:**
-
-```python
-paste_id = path[len(PREFIX):]
-val_str  = query[start:end]
 ```
 
 **Fix needed in stdlib:** `String.__getitem__(Slice) -> String` that trusts the
-caller's byte slice (since `as_bytes()` is already byte-level). No `unsafe` name
-should be required for standard slicing.
+caller's byte slice. No `unsafe` name should be required for standard slicing.
 
 ---
 
@@ -349,7 +391,6 @@ should be required for standard slicing.
 before JSON parsing:
 
 ```mojo
-# handlers.mojo — 6 lines to decode a request body
 var raw = List[UInt8](capacity=len(req.body) + 1)
 for b in req.body:
     raw.append(b)
@@ -357,15 +398,7 @@ raw.append(0)
 var body = String(unsafe_from_utf8=raw)
 ```
 
-**Python / Go equivalent:**
-
-```python
-body = request.get_data(as_text=True)   # Flask
-body = await request.text()             # aiohttp
-```
-
-**Fix needed in `flare`:** `Request.text() -> String` (UTF-8 decode of the body),
-keeping `Request.body` as `Span[UInt8]` for binary handlers.
+**Fix needed in `flare`:** `Request.text() -> String` (UTF-8 decode of the body).
 
 ---
 
@@ -373,96 +406,33 @@ keeping `Request.body` as `Span[UInt8]` for binary handlers.
 
 `morph.write(paste)` reflects the struct and serialises all fields. The `delete_token`
 field must not appear in `GET` responses but must appear once in the `POST` response.
-Because `morph` has no way to inject extra fields, the handler surgically removes the
-closing `}` and appends the field manually:
-
-```mojo
-# handlers.mojo — brittle JSON surgery
-var n = paste_json.byte_length()
-var response_json = (
-    String(unsafe_from_utf8=paste_json.as_bytes()[:n-1])
-    + ',"delete_token":"' + delete_token + '"}'
-)
-```
-
-**Python equivalent:**
-
-```python
-d = dataclasses.asdict(paste)
-d["delete_token"] = token
-return json.dumps(d)
-```
+The handler surgically removes the closing `}` and appends the field manually.
 
 **Fix needed in `morph`:** `write_with(obj, extra: Dict[String, String])` or a
-`@skip_serialise` field attribute to mark `delete_token` as excluded from normal
-output while still accessible for selective inclusion.
+`@skip_serialise` field attribute.
 
 ---
 
 #### 4 — `fork()`, `sleep()`, `kill()` need raw `external_call`
 
-**Today:**
-
 ```mojo
-# main.mojo
 var pid = Int(external_call["fork", Int32]())
 _ = external_call["sleep", Int32](Int32(backoff))
 _ = external_call["kill", Int32](Int32(pid), Int32(15))
 ```
 
-**Python equivalent:**
-
-```python
-pid = os.fork()
-time.sleep(backoff)
-os.kill(pid, signal.SIGTERM)
-```
-
 **Fix needed in `std.os.process`:** `fork() -> Int`, `sleep(seconds: Int)`, and
-`kill(pid: Int, sig: Int)` — basic POSIX wrappers that do not require reaching into
-the raw FFI layer.
+`kill(pid: Int, sig: Int)` — basic POSIX wrappers.
 
 ---
 
-#### 5 — `len(String)` deprecated; `byte_length()` vs character count confusion
+#### 5 — C-FFI `String → Int` pointer casting and keepalive boilerplate
 
-Mojo deprecated `len(s)` on `String`, replacing it with `s.byte_length()`. This is
-correct (Python's `len` on `str` is character count, not byte count), but the rename
-makes simple guards verbose and surprising for newcomers:
+In `sqlite/ffi.mojo`, every string passed to a C function requires a manual copy,
+pointer cast, and an explicit `_ = v^` keepalive to prevent premature deallocation.
 
-```mojo
-# Must write this everywhere
-if s.byte_length() == 0: ...
-```
-
-**Suggestion:** Keep `len(s)` as an alias emitting a deprecation warning, and also add
-`s.char_len() -> Int` for true Unicode codepoint count once the stdlib supports it.
-
----
-
-#### 6 — C-FFI `String → Int` pointer casting and keepalive boilerplate
-
-In `sqlite/ffi.mojo`, every string passed to a C function requires:
-
-```mojo
-var v = val                          # own a mutable copy
-var v_len = Int32(v.byte_length())
-var rc = self._fn_bind_text(
-    stmt, Int32(idx), Int(v.unsafe_ptr()), v_len, Int(-1)
-)
-_ = v^                               # explicit keepalive — without this the
-                                     # compiler may free v before the C call
-```
-
-**Python (cffi) equivalent:**
-
-```python
-lib.sqlite3_bind_text(stmt, idx, val.encode(), -1, SQLITE_TRANSIENT)
-```
-
-**Fix needed in stdlib:** A `String.with_c_ptr { |ptr, len| ... }` scoped helper (like
-Rust's `CString::as_ptr`) that guarantees the buffer is alive for the duration of the
-closure, eliminating both the manual copy and the `_ = v^` keepalive line.
+**Fix needed in stdlib:** A `String.with_c_ptr { |ptr, len| ... }` scoped helper
+that guarantees the buffer is alive for the duration of the closure.
 
 ---
 
@@ -494,7 +464,7 @@ closure, eliminating both the manual copy and the `_ = v^` keepalive line.
 | Delete auth | ✅ | One-time `delete_token` per paste; `401`/`403` without it |
 | CORS | ✅ | `Access-Control-Allow-Origin: *` on all responses |
 | Rate limiting | ✅ | Via Caddy (see [TLS + rate limiting](#tls--rate-limiting-via-caddy)) |
-| HTTPS / TLS | ✅ | Via Caddy with auto-provisioned Let's Encrypt certs |
+| HTTPS / TLS | ✅ | Via Caddy (self-hosted) or Fly.io (managed) |
 
 ---
 
@@ -509,6 +479,7 @@ closure, eliminating both the manual copy and the `_ = v^` keepalive line.
 | WS self-restart | WS child retries up to 10× with exponential back-off (2 s → 16 s cap) before giving up |
 | Crash-safe DB | SQLite WAL + `synchronous=NORMAL` survives unclean shutdown without corruption |
 | Liveness probe | `GET /health` → `{"status":"ok"}` used by Docker healthcheck and Fly.io |
+| AOT compilation | Dockerfile compiles to a standalone binary; JIT fallback if AOT fails |
 
 ### Continuous DB backup with Litestream (optional)
 
@@ -539,32 +510,11 @@ fly secrets set \
 # three LITESTREAM_* environment variables under the backend service.
 ```
 
-Replace `<account-id>` with the 32-char hex string from the R2 overview page.
-
 **Step 3 — deploy**
 
 The `entrypoint.sh` script detects `LITESTREAM_REPLICA_URL` automatically:
 - If the DB file is **absent** on the volume (first boot or after volume loss) it downloads the latest snapshot from R2 before starting the server.
 - If the DB file **exists** it skips the restore and begins replicating immediately.
-
-```bash
-fly deploy   # or: docker compose -f docker-compose.prod.yml up -d
-```
-
-**Restoring after volume loss**
-
-```bash
-# Fly.io — destroy the broken volume and create a new one.
-# On the next deploy, entrypoint.sh will restore from R2 automatically.
-fly volumes list                    # find the volume id
-fly volumes delete <vol-id>
-fly volumes create mobin_data --size 1 --region ord
-fly deploy
-
-# Docker Compose — remove the named volume and restart.
-docker compose -f docker-compose.prod.yml down -v
-docker compose -f docker-compose.prod.yml up -d
-```
 
 ---
 
@@ -585,19 +535,13 @@ Caddy obtains a free [Let's Encrypt](https://letsencrypt.org) certificate for yo
 
 **Step 1 — point a domain at your server**
 
-Create an `A` record in your DNS provider pointing your domain (e.g. `mobin.yourdomain.com`) to your server's IP address. DNS changes typically propagate within a few minutes.
+Create an `A` record in your DNS provider pointing your domain (e.g. `mobin.yourdomain.com`) to your server's IP address.
 
 **Step 2 — set your domain**
-
-Set `CADDY_DOMAIN` in the environment before starting the stack (or edit the
-`CADDY_DOMAIN` line in `docker-compose.prod.yml`):
 
 ```bash
 export CADDY_DOMAIN=mobin.yourdomain.com
 ```
-
-No edits to `Caddyfile` are needed — the file reads `CADDY_DOMAIN` automatically.
-If you leave it unset the default is `:80` (plain HTTP, useful for local testing).
 
 **Step 3 — start the stack**
 
@@ -605,50 +549,68 @@ If you leave it unset the default is `:80` (plain HTTP, useful for local testing
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Caddy will contact Let's Encrypt, verify domain ownership, and serve your site over HTTPS within seconds. You can verify:
-
-```bash
-curl https://mobin.yourdomain.com/health
-# → {"status":"ok"}
-```
-
-### Enable rate limiting (optional)
-
-The `Caddyfile` includes a commented `rate_limit` block. Enabling it requires building Caddy with the [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit) plugin. The standard `caddy:2-alpine` Docker image does not include it by default.
-
-```bash
-# Build a custom Caddy image with the plugin
-docker build -t mobin-caddy -f- . <<'EOF'
-FROM caddy:2-builder AS builder
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit
-FROM caddy:2-alpine
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-EOF
-
-# Update docker-compose.prod.yml to use your image instead of caddy:2-alpine:
-#   image: mobin-caddy
-# Then uncomment the rate_limit block in Caddyfile and redeploy.
-docker compose -f docker-compose.prod.yml up -d
-```
-
-The included rate limit config allows 20 write requests (POST/DELETE) per IP per 60 seconds — generous enough for real use, tight enough to block naive scrapers.
-
 ---
 
 ## Deployment
 
-### Option A — Fly.io + GitHub Actions (recommended)
+### Option A — Fly.io (recommended)
 
-#### Continuous deployment (push-to-main)
+[Fly.io](https://fly.io) runs Docker containers close to your users. It handles TLS, health checks, and rolling deploys.
 
-Once the app is created and secrets are set (see first deploy below), every merge to `main` triggers an automatic deploy via `.github/workflows/deploy.yml`:
+**Current production config:**
 
-1. Go to your repo on GitHub → **Settings → Secrets and variables → Actions**.
-2. Add a secret named `FLY_API_TOKEN` — get the value with:
-   ```bash
-   fly tokens create deploy -x 999999h
-   ```
-3. Push to `main`. GitHub Actions will run `flyctl deploy --remote-only` and your new version will be live within ~1–2 minutes.
+| Resource | Value | Monthly cost |
+|----------|-------|-------------|
+| VM | `shared-cpu-1x`, 256 MB | ~$0 (free tier) |
+| Volume | 1 GB persistent | $0 (free tier) |
+| Dedicated IPv4 | For WebSocket on :8081 | $2/month |
+| **Total** | | **~$2/month** |
+
+The Dockerfile performs AOT compilation — the resulting 546 MB image contains a standalone binary that starts in <2 seconds and runs comfortably in 256 MB.
+
+**Prerequisites**
+
+```bash
+# macOS
+brew install flyctl
+
+# Linux
+curl -L https://fly.io/install.sh | sh
+
+# Authenticate (add a credit card to unlock free tier — no charge for small apps)
+fly auth login
+```
+
+**First deploy**
+
+```bash
+cd /path/to/mobin
+
+# 1. Create the app
+fly launch --no-deploy --copy-config
+
+# 2. Create a persistent volume for SQLite (1 GB, free tier)
+fly volumes create mobin_data --size 1 --region ord
+
+# 3. Allocate a dedicated IPv4 for WebSocket on port 8081
+fly ips allocate-v4
+
+# 4. (Optional) add Litestream backup secrets
+fly secrets set \
+  LITESTREAM_REPLICA_URL="s3://mobin-backup/mobin.db?endpoint=https://<account-id>.r2.cloudflarestorage.com" \
+  LITESTREAM_ACCESS_KEY_ID="<key>" \
+  LITESTREAM_SECRET_ACCESS_KEY="<secret>"
+
+# 5. Deploy
+fly deploy
+# First deploy: ~3–5 min (downloads Mojo toolchain + installs deps)
+# Subsequent deploys: ~2–3 min (Docker layer cache)
+
+# 6. Open in browser
+fly open
+```
+
+**Continuous deployment (push-to-main)**
 
 ```yaml
 # .github/workflows/deploy.yml (already committed)
@@ -666,159 +628,47 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 ```
 
-#### First deploy (one-time setup)
-
-### Option A — Fly.io (easiest, free tier available)
-
-[Fly.io](https://fly.io) is a platform that runs Docker containers close to your users. It handles TLS, health checks, and rolling deploys. The free tier includes enough compute to run mobin at no cost.
-
-**Prerequisites**
-
-```bash
-# macOS
-brew install flyctl
-
-# Linux
-curl -L https://fly.io/install.sh | sh
-
-# Authenticate
-fly auth login    # opens a browser — sign up or log in
-```
-
-**First deploy**
-
-```bash
-cd /path/to/mobin   # repo root — fly.toml and Dockerfile are both here
-
-# 1. Create the app (reads fly.toml, picks a name, does NOT deploy yet)
-fly launch --no-deploy --copy-config
-# When prompted: choose a region close to you (e.g. ord = Chicago, lhr = London)
-# Say NO to creating a Postgres or Redis database
-
-# 2. Create a persistent volume for the SQLite database (1 GB, free tier)
-fly volumes create mobin_data --size 1 --region ord
-# Use the same region you picked above
-
-# 3. (Optional) add Litestream backup secrets — see Litestream section below
-fly secrets set \
-  LITESTREAM_REPLICA_URL="s3://mobin-backup/mobin.db?endpoint=https://<account-id>.r2.cloudflarestorage.com" \
-  LITESTREAM_ACCESS_KEY_ID="<key>" \
-  LITESTREAM_SECRET_ACCESS_KEY="<secret>"
-
-# 4. Deploy — build context is repo root, Dockerfile is at root
-fly deploy
-# First deploy: ~3–5 min (downloads Mojo toolchain + installs pixi deps)
-# Subsequent deploys: ~1–2 min (Docker layer cache hits)
-
-# 5. Open in browser
-fly open
-```
+Get the token: `fly tokens create deploy -x 999999h`
 
 **Useful day-to-day commands**
 
 ```bash
-fly logs                  # tail live logs from the running VM
-fly status                # show health check status and VM state
-fly ssh console           # open a shell inside the running container
-fly deploy                # push a new version (zero-downtime rolling deploy)
-fly scale memory 1024     # increase RAM to 1 GB if the VM OOMs on startup
+fly logs                  # tail live logs
+fly status                # health check status and VM state
+fly ssh console           # shell inside the running container
+fly deploy                # push a new version (rolling deploy)
 fly volumes list          # list persistent volumes
-fly secrets list          # list configured secrets (values are hidden)
+fly secrets list          # list configured secrets (values hidden)
 ```
-
-**If the VM runs out of memory on startup**
-
-The Mojo JIT compiler needs headroom. The default is 512 MB. If you see the VM being killed at startup, run:
-
-```bash
-fly scale memory 1024
-fly deploy
-```
-
-**Updating mobin**
-
-```bash
-# Manually:
-git pull
-fly deploy
-
-# Automatically: just merge a PR to main — GitHub Actions deploys for you.
-```
-
----
 
 ### Option B — VPS with Docker Compose (Hetzner, DigitalOcean, etc.)
 
 A Hetzner CX22 (~4 €/month) or DigitalOcean Droplet ($6/month) is more than enough.
 
-**Step 1 — get a server**
-
-Create a Ubuntu 22.04 server. Note its IP address.
-
-**Step 2 — install Docker on the server**
-
 ```bash
-# SSH into the server
 ssh root@<your-server-ip>
-
-# Install Docker
 curl -fsSL https://get.docker.com | sh
-```
-
-**Step 3 — clone and configure mobin**
-
-```bash
 git clone https://github.com/your-user/mobin.git
 cd mobin
 
-# Edit Caddyfile — replace mobin.example.com with your domain
-nano Caddyfile
-```
+# Set your domain for TLS
+export CADDY_DOMAIN=mobin.yourdomain.com
 
-**Step 4 — (optional) configure Litestream backup**
-
-Open `docker-compose.prod.yml` and uncomment + fill in the three `LITESTREAM_*` environment variables under the `backend` service (see [Litestream setup](#continuous-db-backup-with-litestream-optional)).
-
-**Step 5 — start the stack**
-
-```bash
+# Start the stack
 docker compose -f docker-compose.prod.yml up -d
 ```
-
-This starts three containers:
-- `mobin-backend` — Mojo HTTP + WebSocket server
-- `mobin-caddy` — reverse proxy that handles TLS automatically
-- *(Locust is not included in the prod compose)*
-
-Check everything is healthy:
-
-```bash
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f backend
-```
-
-**Updating mobin**
-
-```bash
-git pull
-docker compose -f docker-compose.prod.yml build --pull
-docker compose -f docker-compose.prod.yml up -d
-```
-
-Docker Compose performs a rolling restart — the old container stays up until the new one is healthy.
 
 ---
 
 ## Summary: which deployment to pick?
 
-| | Fly.io + GitHub Actions | VPS + Docker Compose |
-|-|------------------------|---------------------|
-| **Cost** | Free tier available | ~4 €/month |
+| | Fly.io | VPS + Docker Compose |
+|-|--------|---------------------|
+| **Cost** | ~$2/month (IPv4 only) | ~4 €/month |
 | **TLS** | Automatic (Fly handles it) | Automatic (Caddy handles it) |
 | **Setup time** | ~15 min | ~20 min |
 | **CD on push** | ✅ Built-in (GitHub Actions) | Manual `docker compose up` |
 | **Persistent storage** | Fly volumes (1 GB free) | Server disk |
 | **Litestream backup** | `fly secrets set` + auto-deploy | Uncomment env vars in compose |
 | **SSH access** | `fly ssh console` | `ssh root@ip` |
-| **Scaling** | `fly scale memory` / `fly scale count` | Add more servers manually |
 | **Best for** | Getting something live quickly | Full control, cost predictability |
