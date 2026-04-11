@@ -48,7 +48,7 @@ primary_region = 'ord'
     handlers = ['tls', 'http']
 
 [[vm]]
-  memory = '2gb'
+  memory = '512mb'    # AOT binary; no JIT compilation at runtime
   cpu_kind = 'shared'
-  cpus = 2
-  memory_mb = 2048
+  cpus = 1
+  memory_mb = 512
