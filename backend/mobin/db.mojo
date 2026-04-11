@@ -84,6 +84,30 @@ def init_db(db: Database) raises:
     except:
         pass  # column already present — nothing to do
 
+    # Cumulative stats table — counters only go up, never decrease on
+    # paste expiry or purge.  The single row (id=1) is upserted by
+    # db_create and db_get.
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS stats ("
+        "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+        "  total_pastes INTEGER NOT NULL DEFAULT 0,"
+        "  total_views  INTEGER NOT NULL DEFAULT 0"
+        ")"
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO stats (id, total_pastes, total_views)"
+        " VALUES (1, 0, 0)"
+    )
+    # Backfill: if the stats row has 0 totals but pastes already exist
+    # (upgrade from older schema), seed the counters from current data.
+    db.execute(
+        "UPDATE stats SET"
+        "  total_pastes = (SELECT COUNT(*) FROM pastes),"
+        "  total_views  = (SELECT COALESCE(SUM(views), 0) FROM pastes)"
+        " WHERE total_pastes = 0"
+        "   AND (SELECT COUNT(*) FROM pastes) > 0"
+    )
+
 
 def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     """Insert a new Paste into the database.
@@ -112,6 +136,8 @@ def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     stmt.bind_int(7, paste.views)
     stmt.bind_text(8, delete_token)
     _ = stmt.step()
+
+    db.execute("UPDATE stats SET total_pastes = total_pastes + 1 WHERE id = 1")
 
 
 def db_check_token(db: Database, paste_id: String, token: String) raises -> Bool:
@@ -176,6 +202,8 @@ def db_inc_views(db: Database, paste_id: String) raises:
     )
     stmt.bind_text(1, paste_id)
     _ = stmt.step()
+
+    db.execute("UPDATE stats SET total_views = total_views + 1 WHERE id = 1")
 
 
 def db_delete(db: Database, paste_id: String) raises:
@@ -392,34 +420,46 @@ def db_list_since(db: Database, since_secs: Int) raises -> List[Paste]:
 
 
 def db_stats(db: Database) raises -> PasteStats:
-    """Return aggregate statistics for all non-expired pastes.
+    """Return cumulative statistics that never decrease on paste expiry.
+
+    ``total`` and ``total_views`` come from the monotonic ``stats``
+    table (incremented on create/view, never decremented).  ``today``
+    counts pastes created in the last 24 hours from the ``pastes``
+    table (including expired rows that haven't been purged yet).
 
     Args:
         db: Open SQLite database connection.
 
     Returns:
-        PasteStats with total, today (last 24h), and total_views.
+        PasteStats with total (all-time), today (last 24h), and
+        total_views (cumulative).
 
     Raises:
         Error: On SQLite error.
     """
-    var now = _now()
-    var yesterday = now - 86400
-    var stmt = db.prepare(
-        "SELECT COUNT(*) as total,"
-        " COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as today,"
-        " COALESCE(SUM(views), 0) as total_views"
-        " FROM pastes WHERE expires_at > ?"
-    )
-    stmt.bind_int(1, yesterday)
-    stmt.bind_int(2, now)
+    # Monotonic counters from stats table
+    var s = db.prepare("SELECT total_pastes, total_views FROM stats WHERE id = 1")
+    var s_row = s.step()
+    var total = 0
+    var total_views = 0
+    if s_row:
+        var r = s_row.take()
+        total = r.int_val(0)
+        total_views = r.int_val(1)
 
-    var row_opt = stmt.step()
-    if not row_opt:
-        return PasteStats()
-    var row = row_opt.take()
+    # "today" from pastes (includes expired-but-not-yet-purged rows)
+    var yesterday = _now() - 86400
+    var t = db.prepare(
+        "SELECT COUNT(*) FROM pastes WHERE created_at > ?"
+    )
+    t.bind_int(1, yesterday)
+    var t_row = t.step()
+    var today = 0
+    if t_row:
+        today = t_row.take().int_val(0)
+
     return PasteStats(
-        total=row.int_val(0),
-        today=row.int_val(1),
-        total_views=row.int_val(2),
+        total=total,
+        today=today,
+        total_views=total_views,
     )
