@@ -22,15 +22,20 @@ RUN pixi install
 # wrapper that calls the system ld (which knows about the real installed glibc)
 # fixes the link-time "undefined reference to …@GLIBC_2.34" errors.
 RUN set -e; \
-    CONDA_LD=$(find /app/.pixi/envs/default/libexec -name "ld" -type f 2>/dev/null | head -1); \
+    echo "=== Locating conda cross-linker ==="; \
+    # Search for the ld binary (may be regular file or symlink) in multiple locations
+    CONDA_LD=$(find /app/.pixi/envs/default/libexec /app/.pixi/envs/default/bin \
+                   \( -type f -o -type l \) -name "ld" -o \
+                   -name "x86_64-conda-linux-gnu-ld" 2>/dev/null | head -1); \
+    echo "  found: $CONDA_LD"; \
     if [ -n "$CONDA_LD" ] && [ -x /usr/bin/ld ]; then \
-        echo "=== Replacing conda ld at $CONDA_LD with system ld wrapper ==="; \
+        echo "=== Replacing $CONDA_LD with system ld wrapper ==="; \
         mv "$CONDA_LD" "${CONDA_LD}.orig"; \
         printf '#!/bin/sh\nexec /usr/bin/ld "$@"\n' > "$CONDA_LD"; \
         chmod +x "$CONDA_LD"; \
         echo "=== Done ==="; \
     else \
-        echo "=== conda ld not found or system ld missing — skipping ==="; \
+        echo "=== No replacement done (ld path: '$CONDA_LD') ==="; \
     fi
 
 # ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
