@@ -159,9 +159,9 @@ padding:.6rem;text-align:center}
       <div class="card-header">Stats</div>
       <div class="card-body">
         <div class="stats">
-          <div class="stat"><div class="stat-val" id="s-total">—</div><div class="stat-lbl">Total</div></div>
-          <div class="stat"><div class="stat-val" id="s-today">—</div><div class="stat-lbl">Today</div></div>
-          <div class="stat"><div class="stat-val" id="s-views">—</div><div class="stat-lbl">Views</div></div>
+          <div class="stat"><div class="stat-val" id="s-total">—</div><div class="stat-lbl">All-Time Pastes</div></div>
+          <div class="stat"><div class="stat-val" id="s-today">—</div><div class="stat-lbl">Created Today</div></div>
+          <div class="stat"><div class="stat-val" id="s-views">—</div><div class="stat-lbl">Total Views</div></div>
         </div>
       </div>
     </div>
