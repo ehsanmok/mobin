@@ -1,6 +1,6 @@
 # ── Stage 1: build ────────────────────────────────────────────────────────────
 # Force linux/amd64 — Mojo nightly ships amd64 binaries; Fly.io is amd64 too.
-FROM --platform=linux/amd64 ghcr.io/prefix-dev/pixi:0.66.0 AS builder
+FROM ghcr.io/prefix-dev/pixi:0.66.0 AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -99,7 +99,7 @@ RUN pixi shell-hook --shell bash > /shell-hook.sh && \
     echo 'exec "$@"' >> /shell-hook.sh
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM --platform=linux/amd64 ubuntu:22.04 AS runtime
+FROM ubuntu:22.04 AS runtime
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

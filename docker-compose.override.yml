@@ -1,0 +1,6 @@
+# Local dev override — removes the linux/amd64 platform lock so Mac arm64
+# can build natively (no QEMU emulation).  This file is automatically merged
+# by `docker compose` alongside docker-compose.yml.
+services:
+  backend:
+    platform: linux/arm64
