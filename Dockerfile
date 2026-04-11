@@ -15,24 +15,22 @@ WORKDIR /app
 COPY pixi.toml pixi.lock* ./
 RUN pixi install
 
-# ── Patch conda cross-linker sysroot ──────────────────────────────────────────
-# The conda cross-compiler (x86_64-conda-linux-gnu-gcc) ships with a minimal
-# sysroot whose glibc stubs only cover up to GLIBC_2.17.  Mojo runtime libs
-# require GLIBC_2.29–2.34 versioned symbols (pthread, dl, stat, etc.).
-# Copying the real system glibc into the sysroot lets the cross-linker
-# resolve those versioned symbol references without changing runtime behaviour
-# (the binary still dynamically links against the host's libc at runtime).
+# ── Redirect conda cross-linker to system ld ──────────────────────────────────
+# conda GCC ships its own cross-linker (x86_64-conda-linux-gnu-ld) which uses
+# a minimal sysroot that only has GLIBC stubs up to ~2.17.  Mojo runtime libs
+# need GLIBC_2.29–2.34 versioned symbols.  Replacing the conda ld with a thin
+# wrapper that calls the system ld (which knows about the real installed glibc)
+# fixes the link-time "undefined reference to …@GLIBC_2.34" errors.
 RUN set -e; \
-    SYSROOT_LIB=$(find /app/.pixi/envs/default -path "*/sysroot/lib/x86_64-linux-gnu" -type d 2>/dev/null | head -1); \
-    if [ -n "$SYSROOT_LIB" ]; then \
-        echo "=== Patching conda sysroot at $SYSROOT_LIB ==="; \
-        for lib in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1; do \
-            src="/lib/x86_64-linux-gnu/$lib"; \
-            [ -e "$src" ] && cp -f "$src" "$SYSROOT_LIB/" && echo "  copied $lib" || true; \
-        done; \
-        echo "=== Sysroot patch complete ==="; \
+    CONDA_LD=$(find /app/.pixi/envs/default/libexec -name "ld" -type f 2>/dev/null | head -1); \
+    if [ -n "$CONDA_LD" ] && [ -x /usr/bin/ld ]; then \
+        echo "=== Replacing conda ld at $CONDA_LD with system ld wrapper ==="; \
+        mv "$CONDA_LD" "${CONDA_LD}.orig"; \
+        printf '#!/bin/sh\nexec /usr/bin/ld "$@"\n' > "$CONDA_LD"; \
+        chmod +x "$CONDA_LD"; \
+        echo "=== Done ==="; \
     else \
-        echo "=== No conda sysroot found (arm64 or already native) — skipping ==="; \
+        echo "=== conda ld not found or system ld missing — skipping ==="; \
     fi
 
 # ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
