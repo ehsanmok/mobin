@@ -15,29 +15,52 @@ WORKDIR /app
 COPY pixi.toml pixi.lock* ./
 RUN pixi install
 
-# ── Redirect conda cross-linker to system ld ──────────────────────────────────
-# conda GCC ships its own cross-linker (x86_64-conda-linux-gnu-ld) which uses
-# a minimal sysroot that only has GLIBC stubs up to ~2.17.  Mojo runtime libs
-# need GLIBC_2.29–2.34 versioned symbols.  Replacing the conda ld with a thin
-# wrapper that calls the system ld (which knows about the real installed glibc)
-# fixes the link-time "undefined reference to …@GLIBC_2.34" errors.
+# ── Patch conda sysroot for GLIBC_2.29–2.34 compatibility ────────────────────
+# conda GCC ships an x86_64-conda-linux-gnu sysroot whose glibc stubs only
+# cover up to GLIBC_2.17.  Mojo runtime libs need GLIBC_2.29–2.34 versioned
+# symbols (log@GLIBC_2.29, pthread_key_delete@GLIBC_2.34, etc.).
+#
+# Fix strategy (keep conda's own ld to preserve sysroot search order):
+#   1. Replace sysroot glibc stubs with the real system shared-libs – these
+#      contain the full symbol version tables the linker needs at link time.
+#      On Ubuntu Noble, libpthread.so.0 / libdl.so.2 are ld-scripts that
+#      redirect to libc.so.6 (glibc 2.34 merged them), so copying the scripts
+#      makes the linker follow the absolute path to the real libc.so.6.
+#   2. Replace the sysroot crt1.o / Scrt1.o startup objects with the system's
+#      modern versions – the old conda crt1.o still pulls in __libc_csu_fini /
+#      __libc_csu_init which were removed in glibc 2.34.
 RUN set -e; \
-    echo "=== Locating conda cross-linker ==="; \
-    # Search for the ld binary (may be regular file or symlink) in multiple locations
-    CONDA_LD=$(find /app/.pixi/envs/default/libexec /app/.pixi/envs/default/bin \
-                   \( -type f -o -type l \) -name "ld" -o \
-                   -name "x86_64-conda-linux-gnu-ld" 2>/dev/null | head -1); \
-    echo "  found: $CONDA_LD"; \
-    if [ -n "$CONDA_LD" ] && [ -x /usr/bin/ld ]; then \
-        echo "=== Replacing $CONDA_LD with system ld wrapper ==="; \
-        mv "$CONDA_LD" "${CONDA_LD}.orig"; \
-        # Add system library paths so the linker can resolve GLIBC_2.34+ versioned symbols
-        printf '#!/bin/sh\nexec /usr/bin/ld -L/lib/x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu "$@"\n' > "$CONDA_LD"; \
-        chmod +x "$CONDA_LD"; \
-        echo "=== Done ==="; \
-    else \
-        echo "=== No replacement done (ld path: '$CONDA_LD') ==="; \
-    fi
+    SYSROOT=/app/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot; \
+    if [ ! -d "$SYSROOT" ]; then \
+        echo "=== No conda sysroot (non-Linux or arm64) — skipping ==="; \
+        exit 0; \
+    fi; \
+    echo "=== Patching conda sysroot at $SYSROOT ==="; \
+    \
+    # ─ 1. Replace glibc shared-lib stubs with system versions ─────────────────
+    for dir in lib/x86_64-linux-gnu lib64 usr/lib/x86_64-linux-gnu; do \
+        tgt="$SYSROOT/$dir"; \
+        [ -d "$tgt" ] || continue; \
+        for lib in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libgcc_s.so.1; do \
+            for src_dir in /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu; do \
+                if [ -e "$src_dir/$lib" ]; then \
+                    cp -f "$src_dir/$lib" "$tgt/$lib" 2>/dev/null && \
+                        echo "  replaced $tgt/$lib" || true; \
+                    break; \
+                fi; \
+            done; \
+        done; \
+    done; \
+    \
+    # ─ 2. Replace startup objects (removes __libc_csu_fini/init dependency) ──
+    for crt in crt1.o Scrt1.o crti.o crtn.o; do \
+        sys="/usr/lib/x86_64-linux-gnu/$crt"; \
+        tgt_dir="$SYSROOT/usr/lib/x86_64-linux-gnu"; \
+        [ -f "$sys" ] && [ -d "$tgt_dir" ] && \
+            cp -f "$sys" "$tgt_dir/$crt" && echo "  replaced crt: $crt" || true; \
+    done; \
+    \
+    echo "=== Sysroot patch complete ==="
 
 # ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
 # flare.mojopkg and json.mojopkg are shipped as pre-compiled conda artifacts
