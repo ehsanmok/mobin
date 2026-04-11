@@ -4,7 +4,8 @@ FROM --platform=linux/amd64 ghcr.io/prefix-dev/pixi:0.66.0 AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        git ca-certificates libsqlite3-dev libssl-dev zlib1g-dev && \
+        git ca-certificates build-essential \
+        libsqlite3-dev libssl-dev zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 RUN git config --global --add safe.directory '*'
@@ -13,6 +14,26 @@ WORKDIR /app
 
 COPY pixi.toml pixi.lock* ./
 RUN pixi install
+
+# ── Patch conda cross-linker sysroot ──────────────────────────────────────────
+# The conda cross-compiler (x86_64-conda-linux-gnu-gcc) ships with a minimal
+# sysroot whose glibc stubs only cover up to GLIBC_2.17.  Mojo runtime libs
+# require GLIBC_2.29–2.34 versioned symbols (pthread, dl, stat, etc.).
+# Copying the real system glibc into the sysroot lets the cross-linker
+# resolve those versioned symbol references without changing runtime behaviour
+# (the binary still dynamically links against the host's libc at runtime).
+RUN set -e; \
+    SYSROOT_LIB=$(find /app/.pixi/envs/default -path "*/sysroot/lib/x86_64-linux-gnu" -type d 2>/dev/null | head -1); \
+    if [ -n "$SYSROOT_LIB" ]; then \
+        echo "=== Patching conda sysroot at $SYSROOT_LIB ==="; \
+        for lib in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1; do \
+            src="/lib/x86_64-linux-gnu/$lib"; \
+            [ -e "$src" ] && cp -f "$src" "$SYSROOT_LIB/" && echo "  copied $lib" || true; \
+        done; \
+        echo "=== Sysroot patch complete ==="; \
+    else \
+        echo "=== No conda sysroot found (arm64 or already native) — skipping ==="; \
+    fi
 
 # ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
 # flare.mojopkg and json.mojopkg are shipped as pre-compiled conda artifacts
