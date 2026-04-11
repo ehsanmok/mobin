@@ -31,7 +31,8 @@ RUN set -e; \
     if [ -n "$CONDA_LD" ] && [ -x /usr/bin/ld ]; then \
         echo "=== Replacing $CONDA_LD with system ld wrapper ==="; \
         mv "$CONDA_LD" "${CONDA_LD}.orig"; \
-        printf '#!/bin/sh\nexec /usr/bin/ld "$@"\n' > "$CONDA_LD"; \
+        # Add system library paths so the linker can resolve GLIBC_2.34+ versioned symbols
+        printf '#!/bin/sh\nexec /usr/bin/ld -L/lib/x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu "$@"\n' > "$CONDA_LD"; \
         chmod +x "$CONDA_LD"; \
         echo "=== Done ==="; \
     else \
