@@ -1,11 +1,11 @@
 # mobin
 
-A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path -- the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
+A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path: the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
 
 **Live demo: [mobin.fly.dev](https://mobin.fly.dev/)**
 
 - **Backend**: Mojo (`flare` HTTP + WS, `sqlite`, `morph` JSON, `uuid`, `tempo`)
-- **Frontend**: Vanilla JS + nginx -- syntax highlighting, live feed via WebSocket with auto-removal of expired pastes
+- **Frontend**: Vanilla JS + nginx with syntax highlighting, live feed via WebSocket, auto-removal of expired pastes
 - **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions -> Fly.io CD
 
 ---
@@ -46,8 +46,8 @@ graph TD
 
 In production (HTTPS), the frontend detects the protocol and adjusts:
 
-- **API** -> same origin (`https://mobin.fly.dev/...`) -- Fly.io's `[http_service]` routes port 443 to internal port 8080
-- **WebSocket** -> `wss://mobin.fly.dev:8081/feed` -- Fly.io's `[[services]]` terminates TLS on port 8081 via a dedicated IPv4
+- **API** -> same origin (`https://mobin.fly.dev/...`). Fly.io's `[http_service]` routes port 443 to internal port 8080
+- **WebSocket** -> `wss://mobin.fly.dev:8081/feed`. Fly.io's `[[services]]` terminates TLS on port 8081 via a dedicated IPv4
 - **Fallback** -> if WS is unreachable, the frontend polls `GET /pastes` every 3 seconds
 
 In local dev, explicit ports are used: `:8080` for API, `:8081` for WS.
@@ -58,10 +58,10 @@ In local dev, explicit ports are used: `:8080` for API, `:8081` for WS.
 
 | Process | Role | Port |
 |---------|------|------|
-| Parent | `HttpServer` -- handles all REST requests | `$PORT` (default 8080) |
-| Child  | `WsServer` -- pushes new pastes to subscribers | `$WS_PORT` (default 8081) |
+| Parent | `HttpServer`: handles all REST requests | `$PORT` (default 8080) |
+| Child  | `WsServer`: pushes new pastes to subscribers | `$WS_PORT` (default 8081) |
 
-`fork()` is used instead of `parallelize` because `parallelize`'s `TaskGroup` calls `abort()` on any unhandled exception -- a routine WebSocket disconnection would kill both servers. Separate OS processes give full fault isolation: an EPIPE in the WS child does not affect the HTTP parent. The WS child also self-restarts up to 10 times with exponential back-off before giving up.
+`fork()` is used instead of `parallelize` because `parallelize`'s `TaskGroup` calls `abort()` on any unhandled exception, so a routine WebSocket disconnection would kill both servers. Separate OS processes give full fault isolation: an EPIPE in the WS child does not affect the HTTP parent. The WS child also self-restarts up to 10 times with exponential back-off before giving up.
 
 ### Database
 
@@ -89,7 +89,7 @@ The `today` counter resets to 0 at midnight UTC and counts up from there. All co
 
 ```
 mobin/
-├── pixi.toml                  <- root manifest -- all Mojo deps + tasks
+├── pixi.toml                  <- root manifest (all Mojo deps + tasks)
 ├── pixi.lock                  <- pinned dependency graph
 ├── Dockerfile                 <- production image (AOT compile with JIT fallback)
 ├── fly.toml                   <- Fly.io app config (256 MB shared-cpu-1x)
@@ -131,7 +131,7 @@ mobin/
 
 ---
 
-## Quick start -- local
+## Quick start: local
 
 All commands are run from the **repo root** (where `pixi.toml` lives):
 
@@ -140,7 +140,7 @@ pixi install          # resolve + install all Mojo dependencies
 pixi run run-dev      # start backend on :8080 (HTTP) and :8081 (WS)
 ```
 
-Open `http://localhost:8080` -- the backend serves the embedded frontend directly.
+Open `http://localhost:8080`. The backend serves the embedded frontend directly.
 
 To run the full nginx-fronted UI simultaneously:
 
@@ -160,7 +160,7 @@ Environment variables (all optional):
 
 ---
 
-## Quick start -- Docker Compose (dev)
+## Quick start: Docker Compose (dev)
 
 ```bash
 docker compose up --build
@@ -175,7 +175,7 @@ docker compose up --build
 
 > **Mac ARM64 (M-series):** The repo includes a `docker-compose.override.yml` that
 > builds natively for `linux/arm64`, avoiding slow QEMU emulation. Docker Compose
-> merges it automatically -- no extra flags needed.
+> merges it automatically, no extra flags needed.
 
 ---
 
@@ -185,7 +185,7 @@ docker compose up --build
 |---------|-------------|
 | `pixi install` | Install all Mojo library dependencies into `.pixi/envs/default/` |
 | `pixi run serve` | Start the backend (used by Docker / Fly.io entrypoint) |
-| `pixi run run-dev` | Run with `mojo run` -- no compile step, fastest iteration |
+| `pixi run run-dev` | Run with `mojo run` (no compile step, fastest iteration) |
 | `pixi run build` | Compile `backend/main.mojo` to a standalone `mobin-backend` binary |
 | `pixi run run` | Build then immediately start the backend binary |
 | `pixi run serve-frontend` | Serve `frontend/src/` on `:3001` via Python HTTP (dev only) |
@@ -207,7 +207,7 @@ The integration suite runs **45 tests** against the live Docker Compose stack:
 | `pixi run test` | Run HTTP + WebSocket integration tests against a running backend |
 | `pixi run test-all` | Run all tests including frontend container smoke tests |
 | `pixi run load-test` | Headless Locust: 50 users, 5/s ramp, 60 s, against `http://localhost:8080` |
-| `pixi run load-ui` | Locust with web UI on `:8089` -- set users and run time interactively |
+| `pixi run load-ui` | Locust with web UI on `:8089`; set users and run time interactively |
 
 Test breakdown:
 
@@ -231,9 +231,9 @@ Set `MOBIN_URL=http://my-server:8080` to run the test suite against an already-r
 | `DELETE` | `/paste/{id}` | Delete paste (requires `X-Delete-Token` header) |
 | `GET` | `/pastes` | List pastes (`?limit=20&offset=0`, `?q=term`, `?before=ts`) |
 | `GET` | `/stats` | Global stats: `total` (all-time), `today` (24h), `total_views` (cumulative) |
-| `GET` | `/health` | Liveness probe -- returns `{"status":"ok"}` |
+| `GET` | `/health` | Liveness probe, returns `{"status":"ok"}` |
 | `GET` | `/` | Serve frontend HTML |
-| `OPTIONS` | `*` | CORS preflight -- returns 204 with `Access-Control-Allow-*` headers |
+| `OPTIONS` | `*` | CORS preflight, returns 204 with `Access-Control-Allow-*` headers |
 
 All responses include `Access-Control-Allow-Origin: *`.
 
@@ -285,7 +285,7 @@ curl -X POST http://localhost:8080/paste \
   }'
 ```
 
-Response -- save `delete_token`, it is only returned once:
+Response (save `delete_token`, it is only returned once):
 
 ```json
 {
@@ -328,6 +328,8 @@ In production: `wss://mobin.fly.dev:8081/feed` (TLS terminated by Fly.io).
 
 ## Performance
 
+### Local (Docker Compose, Mac M-series)
+
 Observed under 50-user Locust load test (5 users/s ramp, 60 s):
 
 | Metric | Observed |
@@ -337,6 +339,20 @@ Observed under 50-user Locust load test (5 users/s ramp, 60 s):
 | List pastes (GET /pastes) | ~500 RPS, p95 ~ 90 ms |
 | Idle memory | ~15 MB |
 | Error rate | 0% |
+
+### Live endpoint (mobin.fly.dev, shared-cpu-1x 256 MB)
+
+Sequential load test, 50 requests per endpoint, warm machine:
+
+| Endpoint | avg | p50 | p95 | min |
+|----------|-----|-----|-----|-----|
+| POST /paste (create) | 236 ms | 236 ms | 289 ms | 193 ms |
+| GET /paste/:id (read) | 250 ms | 233 ms | 260 ms | 195 ms |
+| GET /pastes (list) | 234 ms | 232 ms | 262 ms | 197 ms |
+| GET /stats | 229 ms | 233 ms | 263 ms | 186 ms |
+| GET /health | 305 ms | 242 ms | 559 ms | 184 ms |
+
+The ~200 ms floor is network round-trip from the test client. Server-side processing is <5 ms. 0 errors across 250 requests. Cold-start adds ~1-2 s on the first request when the Fly.io machine wakes from sleep.
 
 SQLite WAL mode handles concurrent reads well at these concurrency levels. Write throughput becomes the limiting factor under sustained write-heavy load.
 
@@ -354,7 +370,7 @@ Items marked ✅ have been implemented. Remaining items are open improvements.
 | **Expiry enforcement** | ✅ Done | Background sweep every 60 s; startup purge cleans rows that expired while the service was down |
 | **Keyset pagination** | ✅ Done | `GET /pastes?before=<unix_ts>` for cursor-stable pages; classic `offset=N` still supported |
 | **Paste search** | ✅ Done | `GET /pastes?q=<term>` filters by case-insensitive substring match (SQLite LIKE) |
-| **Monotonic stats** | ✅ Done | Stats never decrease on paste expiry -- dedicated `stats` table with cumulative counters |
+| **Monotonic stats** | ✅ Done | Stats never decrease on paste expiry; dedicated `stats` table with cumulative counters |
 | **Production deploy** | ✅ Done | AOT-compiled binary on Fly.io (256 MB, shared-cpu-1x) with dedicated IPv4 for WS |
 | **Authentication** | Not planned | Pastes are intentionally public; delete token is the only ownership proof |
 | **WS child death** | Open | After 10 retries the live feed goes silent; a `/ws/health` probe could alert the user |
@@ -364,19 +380,19 @@ Items marked ✅ have been implemented. Remaining items are open improvements.
 
 ### Mojo DX friction (things the language/libs should fix)
 
-These are not bugs -- the service is correct -- but each required a workaround that
+These are not bugs (the service is correct), but each required a workaround that
 Python would express in one line. They are useful upstream bug reports / feature
 requests for the Mojo ecosystem.
 
-#### 1 -- `String` byte-range slicing requires `unsafe`
+#### 1. `String` byte-range slicing requires `unsafe`
 
-**Today** -- every substring by byte index uses the `unsafe_from_utf8=` escape hatch:
+**Today:** every substring by byte index uses the `unsafe_from_utf8=` escape hatch:
 
 ```mojo
-# router.mojo -- strip the "/paste/" prefix
+# router.mojo: strip the "/paste/" prefix
 var paste_id = String(unsafe_from_utf8=path.as_bytes()[_PREFIX.byte_length():])
 
-# handlers.mojo -- parse a query-string value
+# handlers.mojo: parse a query-string value
 val_str = String(unsafe_from_utf8=query.as_bytes()[start:end])
 ```
 
@@ -385,9 +401,9 @@ caller's byte slice. No `unsafe` name should be required for standard slicing.
 
 ---
 
-#### 2 -- `Request.body` is `List[UInt8]`, not `String`
+#### 2. `Request.body` is `List[UInt8]`, not `String`
 
-**Today** -- every HTTP handler must manually copy the byte list and null-terminate
+**Today:** every HTTP handler must manually copy the byte list and null-terminate
 before JSON parsing:
 
 ```mojo
@@ -402,7 +418,7 @@ var body = String(unsafe_from_utf8=raw)
 
 ---
 
-#### 3 -- No way to add ad-hoc fields to `morph.write()` output
+#### 3. No way to add ad-hoc fields to `morph.write()` output
 
 `morph.write(paste)` reflects the struct and serialises all fields. The `delete_token`
 field must not appear in `GET` responses but must appear once in the `POST` response.
@@ -413,7 +429,7 @@ The handler surgically removes the closing `}` and appends the field manually.
 
 ---
 
-#### 4 -- `fork()`, `sleep()`, `kill()` need raw `external_call`
+#### 4. `fork()`, `sleep()`, `kill()` need raw `external_call`
 
 ```mojo
 var pid = Int(external_call["fork", Int32]())
@@ -422,11 +438,11 @@ _ = external_call["kill", Int32](Int32(pid), Int32(15))
 ```
 
 **Fix needed in `std.os.process`:** `fork() -> Int`, `sleep(seconds: Int)`, and
-`kill(pid: Int, sig: Int)` -- basic POSIX wrappers.
+`kill(pid: Int, sig: Int)`. Basic POSIX wrappers.
 
 ---
 
-#### 5 -- C-FFI `String -> Int` pointer casting and keepalive boilerplate
+#### 5. C-FFI `String -> Int` pointer casting and keepalive boilerplate
 
 In `sqlite/ffi.mojo`, every string passed to a C function requires a manual copy,
 pointer cast, and an explicit `_ = v^` keepalive to prevent premature deallocation.
@@ -436,7 +452,7 @@ that guarantees the buffer is alive for the duration of the closure.
 
 ---
 
-### Summary table -- `unsafe` usage and where it should go away
+### Summary table: `unsafe` usage and where it should go away
 
 | Location | `unsafe` pattern | Root cause | Fix target |
 |----------|-----------------|-----------|-----------|
@@ -459,7 +475,7 @@ that guarantees the buffer is alive for the duration of the closure.
 | Oversized payloads | ✅ | >2 MB -> `413 Content Too Large` |
 | Null bytes | ✅ | `\x00` in content -> `400 Bad Request` |
 | SQL injection | ✅ | All queries use parameterised SQLite statements |
-| XSS | ✅ | Frontend uses `textContent` / `esc()` -- no `innerHTML` on user data |
+| XSS | ✅ | Frontend uses `textContent` / `esc()`, no `innerHTML` on user data |
 | Path traversal | ✅ | No filesystem access based on user input |
 | Delete auth | ✅ | One-time `delete_token` per paste; `401`/`403` without it |
 | CORS | ✅ | `Access-Control-Allow-Origin: *` on all responses |
@@ -475,7 +491,7 @@ that guarantees the buffer is alive for the duration of the closure.
 | Feature | How |
 |---------|-----|
 | Container auto-restart | `restart: always` in prod compose; Fly.io auto-restarts on health-check failure |
-| HTTP / WS isolation | `fork()` gives HTTP and WS separate OS processes -- a WS crash cannot kill the HTTP server |
+| HTTP / WS isolation | `fork()` gives HTTP and WS separate OS processes; a WS crash cannot kill the HTTP server |
 | WS self-restart | WS child retries up to 10x with exponential back-off (2 s -> 16 s cap) before giving up |
 | Crash-safe DB | SQLite WAL + `synchronous=NORMAL` survives unclean shutdown without corruption |
 | Liveness probe | `GET /health` -> `{"status":"ok"}` used by Docker healthcheck and Fly.io |
@@ -485,17 +501,17 @@ that guarantees the buffer is alive for the duration of the closure.
 
 [Litestream](https://litestream.io) streams every SQLite WAL commit to object storage in real time (<=1 s lag). If the volume is ever lost, it restores the latest snapshot automatically on the next startup. Worst-case data loss: ~1 second of writes.
 
-[Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/) is the recommended backend -- 10 GB free storage, zero egress fees.
+[Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/) is the recommended backend: 10 GB free storage, zero egress fees.
 
-**Step 1 -- create an R2 bucket**
+**Step 1: create an R2 bucket**
 
 1. Sign up / log in at [dash.cloudflare.com](https://dash.cloudflare.com).
 2. Go to **R2 Object Storage** -> **Create bucket** -> name it `mobin-backup`.
 3. Go to **Manage R2 API Tokens** -> **Create API Token** -> grant *Object Read & Write* on the `mobin-backup` bucket.
-4. Copy the **Access Key ID** and **Secret Access Key** -- you'll need them in the next step.
+4. Copy the **Access Key ID** and **Secret Access Key** (you'll need them in the next step).
 5. Copy your **Account ID** from the R2 overview page (a 32-char hex string).
 
-**Step 2 -- set the secrets**
+**Step 2: set the secrets**
 
 Never commit credentials. Set them via your deployment tool:
 
@@ -506,11 +522,11 @@ fly secrets set \
   LITESTREAM_ACCESS_KEY_ID="<your-access-key-id>" \
   LITESTREAM_SECRET_ACCESS_KEY="<your-secret-access-key>"
 
-# Docker Compose -- open docker-compose.prod.yml and uncomment + fill in the
+# Docker Compose: open docker-compose.prod.yml and uncomment + fill in the
 # three LITESTREAM_* environment variables under the backend service.
 ```
 
-**Step 3 -- deploy**
+**Step 3: deploy**
 
 The `entrypoint.sh` script detects `LITESTREAM_REPLICA_URL` automatically:
 - If the DB file is **absent** on the volume (first boot or after volume loss) it downloads the latest snapshot from R2 before starting the server.
@@ -520,7 +536,7 @@ The `entrypoint.sh` script detects `LITESTREAM_REPLICA_URL` automatically:
 
 ## TLS + rate limiting via Caddy
 
-[Caddy](https://caddyserver.com) is a modern web server that handles HTTPS automatically -- no certbot, no manual certificate renewal. The `Caddyfile` and a Caddy service are already included in `docker-compose.prod.yml`.
+[Caddy](https://caddyserver.com) is a modern web server that handles HTTPS automatically: no certbot, no manual certificate renewal. The `Caddyfile` and a Caddy service are already included in `docker-compose.prod.yml`.
 
 ### How Caddy fits in
 
@@ -533,17 +549,17 @@ Caddy obtains a free [Let's Encrypt](https://letsencrypt.org) certificate for yo
 
 ### Setup (5 minutes)
 
-**Step 1 -- point a domain at your server**
+**Step 1: point a domain at your server**
 
 Create an `A` record in your DNS provider pointing your domain (e.g. `mobin.yourdomain.com`) to your server's IP address.
 
-**Step 2 -- set your domain**
+**Step 2: set your domain**
 
 ```bash
 export CADDY_DOMAIN=mobin.yourdomain.com
 ```
 
-**Step 3 -- start the stack**
+**Step 3: start the stack**
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d
@@ -553,7 +569,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## Deployment
 
-### Option A -- Fly.io (recommended)
+### Option A: Fly.io (recommended)
 
 [Fly.io](https://fly.io) runs Docker containers close to your users. It handles TLS, health checks, and rolling deploys.
 
@@ -566,7 +582,7 @@ docker compose -f docker-compose.prod.yml up -d
 | Dedicated IPv4 | For WebSocket on :8081 | $2/month |
 | **Total** | | **~$2/month** |
 
-The Dockerfile performs AOT compilation -- the resulting 546 MB image contains a standalone binary that starts in <2 seconds and runs comfortably in 256 MB.
+The Dockerfile performs AOT compilation. The resulting 546 MB image contains a standalone binary that starts in <2 seconds and runs comfortably in 256 MB.
 
 **Prerequisites**
 
@@ -577,7 +593,7 @@ brew install flyctl
 # Linux
 curl -L https://fly.io/install.sh | sh
 
-# Authenticate (add a credit card to unlock free tier -- no charge for small apps)
+# Authenticate (add a credit card to unlock free tier, no charge for small apps)
 fly auth login
 ```
 
@@ -603,8 +619,8 @@ fly secrets set \
 
 # 5. Deploy
 fly deploy
-# First deploy: ~3–5 min (downloads Mojo toolchain + installs deps)
-# Subsequent deploys: ~2–3 min (Docker layer cache)
+# First deploy: ~3-5 min (downloads Mojo toolchain + installs deps)
+# Subsequent deploys: ~2-3 min (Docker layer cache)
 
 # 6. Open in browser
 fly open
@@ -641,7 +657,7 @@ fly volumes list          # list persistent volumes
 fly secrets list          # list configured secrets (values hidden)
 ```
 
-### Option B -- VPS with Docker Compose (Hetzner, DigitalOcean, etc.)
+### Option B: VPS with Docker Compose (Hetzner, DigitalOcean, etc.)
 
 A Hetzner CX22 (~4 €/month) or DigitalOcean Droplet ($6/month) is more than enough.
 
