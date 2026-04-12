@@ -17,6 +17,26 @@ def _now() -> Int:
     return Int(Timestamp.now().unix_secs())
 
 
+def _today_int() -> Int:
+    """Return today's date as an integer YYYYMMDD in UTC."""
+    var ts = _now()
+    var days = ts // 86400
+    # Convert days since epoch to YYYYMMDD.
+    #算法 from https://howardhinnant.github.io/date_algorithms.html
+    var z = days + 719468
+    var era = z // 146097 if z >= 0 else (z - 146096) // 146097
+    var doe = z - era * 146097
+    var yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    var y = yoe + era * 400
+    var doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    var mp = (5 * doy + 2) // 153
+    var d = doy - (153 * mp + 2) // 5 + 1
+    var m = mp + 3 if mp < 10 else mp - 9
+    if m <= 2:
+        y += 1
+    return Int(y) * 10000 + Int(m) * 100 + Int(d)
+
+
 def _row_to_paste(stmt: Statement) raises -> Optional[Paste]:
     """Step a statement and convert the next row to a Paste.
 
@@ -84,29 +104,48 @@ def init_db(db: Database) raises:
     except:
         pass  # column already present — nothing to do
 
-    # Cumulative stats table — counters only go up, never decrease on
-    # paste expiry or purge.  The single row (id=1) is upserted by
-    # db_create and db_get.
+    # Cumulative stats table -- counters only go up, never decrease on
+    # paste expiry or purge.  today_pastes resets when today_date rolls
+    # over to a new day (UTC).
     db.execute(
         "CREATE TABLE IF NOT EXISTS stats ("
         "  id INTEGER PRIMARY KEY CHECK (id = 1),"
         "  total_pastes INTEGER NOT NULL DEFAULT 0,"
-        "  total_views  INTEGER NOT NULL DEFAULT 0"
+        "  total_views  INTEGER NOT NULL DEFAULT 0,"
+        "  today_pastes INTEGER NOT NULL DEFAULT 0,"
+        "  today_date   INTEGER NOT NULL DEFAULT 0"
         ")"
     )
+    # Migration: add today_pastes/today_date columns for older schemas.
+    # Must run BEFORE the INSERT so all columns exist.
+    try:
+        db.execute("ALTER TABLE stats ADD COLUMN today_pastes INTEGER NOT NULL DEFAULT 0")
+    except:
+        pass
+    try:
+        db.execute("ALTER TABLE stats ADD COLUMN today_date INTEGER NOT NULL DEFAULT 0")
+    except:
+        pass
     db.execute(
-        "INSERT OR IGNORE INTO stats (id, total_pastes, total_views)"
-        " VALUES (1, 0, 0)"
+        "INSERT OR IGNORE INTO stats (id, total_pastes, total_views,"
+        " today_pastes, today_date) VALUES (1, 0, 0, 0, 0)"
     )
     # Backfill: if the stats row has 0 totals but pastes already exist
     # (upgrade from older schema), seed the counters from current data.
-    db.execute(
+    var cur_date = _today_int()
+    var backfill_stmt = db.prepare(
         "UPDATE stats SET"
         "  total_pastes = (SELECT COUNT(*) FROM pastes),"
-        "  total_views  = (SELECT COALESCE(SUM(views), 0) FROM pastes)"
+        "  total_views  = (SELECT COALESCE(SUM(views), 0) FROM pastes),"
+        "  today_pastes = (SELECT COUNT(*) FROM pastes WHERE created_at > ?),"
+        "  today_date   = ?"
         " WHERE total_pastes = 0"
         "   AND (SELECT COUNT(*) FROM pastes) > 0"
     )
+    var yesterday = _now() - 86400
+    backfill_stmt.bind_int(1, yesterday)
+    backfill_stmt.bind_int(2, cur_date)
+    _ = backfill_stmt.step()
 
 
 def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
@@ -137,7 +176,18 @@ def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     stmt.bind_text(8, delete_token)
     _ = stmt.step()
 
-    db.execute("UPDATE stats SET total_pastes = total_pastes + 1 WHERE id = 1")
+    # Increment monotonic counters.  If the calendar day rolled over,
+    # reset today_pastes to 1 for the new day.
+    var td = _today_int()
+    var up = db.prepare(
+        "UPDATE stats SET total_pastes = total_pastes + 1,"
+        "  today_pastes = CASE WHEN today_date = ? THEN today_pastes + 1 ELSE 1 END,"
+        "  today_date = ?"
+        " WHERE id = 1"
+    )
+    up.bind_int(1, td)
+    up.bind_int(2, td)
+    _ = up.step()
 
 
 def db_check_token(db: Database, paste_id: String, token: String) raises -> Bool:
@@ -422,10 +472,10 @@ def db_list_since(db: Database, since_secs: Int) raises -> List[Paste]:
 def db_stats(db: Database) raises -> PasteStats:
     """Return cumulative statistics that never decrease on paste expiry.
 
-    ``total`` and ``total_views`` come from the monotonic ``stats``
-    table (incremented on create/view, never decremented).  ``today``
-    counts pastes created in the last 24 hours from the ``pastes``
-    table (including expired rows that haven't been purged yet).
+    All three counters come from the monotonic ``stats`` table.
+    ``total`` and ``total_views`` only go up. ``today`` resets to 0
+    at the start of each new UTC calendar day and counts up from
+    there -- it never decreases within a day, even when pastes expire.
 
     Args:
         db: Open SQLite database connection.
@@ -437,26 +487,25 @@ def db_stats(db: Database) raises -> PasteStats:
     Raises:
         Error: On SQLite error.
     """
-    # Monotonic counters from stats table
-    var s = db.prepare("SELECT total_pastes, total_views FROM stats WHERE id = 1")
+    # All three counters come from the monotonic stats table.
+    # today_pastes resets to 0 only on calendar-day rollover in db_create.
+    var td = _today_int()
+    var s = db.prepare(
+        "SELECT total_pastes, total_views, today_pastes, today_date"
+        " FROM stats WHERE id = 1"
+    )
     var s_row = s.step()
     var total = 0
     var total_views = 0
+    var today = 0
     if s_row:
         var r = s_row.take()
         total = r.int_val(0)
         total_views = r.int_val(1)
-
-    # "today" from pastes (includes expired-but-not-yet-purged rows)
-    var yesterday = _now() - 86400
-    var t = db.prepare(
-        "SELECT COUNT(*) FROM pastes WHERE created_at > ?"
-    )
-    t.bind_int(1, yesterday)
-    var t_row = t.step()
-    var today = 0
-    if t_row:
-        today = t_row.take().int_val(0)
+        var stored_date = r.int_val(3)
+        if stored_date == td:
+            today = r.int_val(2)
+        # else: different day, today is 0 until the first paste of the day
 
     return PasteStats(
         total=total,

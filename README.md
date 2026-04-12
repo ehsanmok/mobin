@@ -83,7 +83,7 @@ Stats use a dedicated `stats` table with monotonically-increasing counters:
 | `total_pastes` | A paste is created | Even after paste expires or is purged |
 | `total_views` | A paste is viewed | Even after paste expires or is purged |
 
-The `today` counter is computed live from the `pastes` table (`WHERE created_at > now - 86400`). A backfill migration seeds the `stats` table from existing data when upgrading from an older schema.
+The `today` counter resets to 0 at midnight UTC and counts up from there. All counters are stored in the `stats` table and survive paste expiry and purge. A backfill migration seeds counters from existing data when upgrading from an older schema.
 
 ### Repo layout
 
@@ -252,7 +252,7 @@ The `/stats` endpoint returns cumulative counters that **never decrease**:
 | Field | Meaning |
 |-------|---------|
 | `total` | All-time pastes created (survives expiry and purge) |
-| `today` | Pastes created in the last 24 hours |
+| `today` | Pastes created today (UTC). Resets to 0 at midnight, never decreases within a day |
 | `total_views` | Cumulative view count across all pastes (survives expiry and purge) |
 
 ### TTL options
