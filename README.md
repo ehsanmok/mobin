@@ -1,15 +1,15 @@
 # mobin
 
 [![CI](https://github.com/ehsanmok/mobin/actions/workflows/ci.yml/badge.svg)](https://github.com/ehsanmok/mobin/actions/workflows/ci.yml)
-[![Deploy](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml/badge.svg)](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml)
+[![Deploy](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml/badge.svg?event=workflow_run)](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml)
 
 A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path: the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
 
 **Live demo: [mobin.fly.dev](https://mobin.fly.dev/)**
 
-- **Backend**: Mojo (`flare` HTTP + WS, `sqlite`, `morph` JSON, `uuid`, `tempo`)
+- **Backend**: Mojo ([flare](https://github.com/ehsanmok/flare) HTTP + WS, [sqlite](https://github.com/ehsanmok/sqlite), [morph](https://github.com/ehsanmok/morph) JSON, [uuid](https://github.com/ehsanmok/uuid), [tempo](https://github.com/ehsanmok/tempo))
 - **Frontend**: Vanilla JS + nginx with syntax highlighting, live feed via WebSocket, auto-removal of expired pastes
-- **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions -> Fly.io CD
+- **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions -> [Fly.io](https://fly.io) CD
 
 ---
 
