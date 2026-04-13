@@ -262,6 +262,9 @@ def test_db_stats_counts() raises:
     db_inc_views(db, "s2")
     db_inc_views(db, "s2")
     db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
     var s2 = db_stats(db)
     assert_equal(s2.total_views, 10)
 
