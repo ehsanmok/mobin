@@ -8,7 +8,7 @@ preview   = ["pixi-build"]
 
 # ── Backend Mojo dependencies ──────────────────────────────────────────────────
 [dependencies]
-mojo            = "<1.0"
+mojo            = "==0.26.3.0.dev2026041305"
 flare           = { git = "https://github.com/ehsanmok/flare.git",  branch = "main" }
 json            = { git = "https://github.com/ehsanmok/json.git",   branch = "main" }
 morph           = { git = "https://github.com/ehsanmok/morph.git",  branch = "main" }
