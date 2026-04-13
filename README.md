@@ -82,7 +82,8 @@ docker compose up --build
 | [Architecture](docs/architecture.md) | Process model, database design, URL routing, stats table |
 | [API Reference](docs/api.md) | REST endpoints, WebSocket feed, TTL options, curl examples |
 | [Development](docs/development.md) | Repo layout, pixi commands, environment variables, integration tests |
+| [Package Management](docs/package-management.md) | Why Pixi, dependency pinning, dependency graph |
 | [Deployment](docs/deployment.md) | Fly.io, VPS + Docker Compose, Caddy TLS, Litestream backup |
 | [Performance](docs/performance.md) | Local and live benchmarks |
 | [Security](docs/security.md) | Security checklist and resilience |
-| [Mojo DX](docs/mojo-dx.md) | Language friction points and `unsafe` usage audit |
+| [Mojo DX](docs/mojo-dx.md) | Language friction points and what's been resolved |
