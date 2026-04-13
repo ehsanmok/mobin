@@ -1,5 +1,8 @@
 # mobin
 
+[![CI](https://github.com/ehsanmok/mobin/actions/workflows/ci.yml/badge.svg)](https://github.com/ehsanmok/mobin/actions/workflows/ci.yml)
+[![Deploy](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml/badge.svg)](https://github.com/ehsanmok/mobin/actions/workflows/deploy.yml)
+
 A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zero Python in the hot path: the HTTP server, WebSocket server, database layer, JSON serialisation, and routing are all Mojo code.
 
 **Live demo: [mobin.fly.dev](https://mobin.fly.dev/)**
