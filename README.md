@@ -60,21 +60,6 @@ docker compose up --build
 # Backend:  http://localhost:8080
 ```
 
-## Known limitations
-
-| Area | Status |
-|------|--------|
-| Paste editing | Done |
-| Expiry enforcement | Done |
-| Keyset pagination | Done |
-| Paste search | Done |
-| Monotonic stats | Done |
-| Production deploy | Done |
-| Authentication | Not planned (pastes are intentionally public) |
-| WS child death monitoring | Open |
-| Multi-region SQLite | Open (requires Turso/libSQL or Postgres) |
-| Full-text search | Open (current LIKE is `O(n)`, FTS5 would be faster) |
-
 ## Documentation
 
 | Guide | What it covers |
