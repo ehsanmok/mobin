@@ -216,11 +216,15 @@ def test_db_stats_empty() raises:
 
 
 def test_db_stats_counts() raises:
-    """Checks that db_stats correctly counts total, today, and total_views."""
+    """Checks that db_stats correctly counts total, today, and total_views.
+
+    today_pastes is a monotonic counter incremented by db_create at call time,
+    not filtered by the paste's created_at timestamp.  total_views is only
+    incremented by db_inc_views, not by the initial views field on insert.
+    """
     var db = _open_db()
     var now = _now()
 
-    # Paste created today
     var p1 = Paste(
         id="s1",
         title="A",
@@ -228,9 +232,8 @@ def test_db_stats_counts() raises:
         language="plain",
         created_at=now - 100,
         expires_at=now + 86400,
-        views=3,
+        views=0,
     )
-    # Paste created yesterday
     var p2 = Paste(
         id="s2",
         title="B",
@@ -238,15 +241,29 @@ def test_db_stats_counts() raises:
         language="plain",
         created_at=now - 90000,
         expires_at=now + 86400,
-        views=7,
+        views=0,
     )
     db_create(db, p1)
     db_create(db, p2)
 
+    # Both db_create calls happen right now, so both count toward today.
     var s = db_stats(db)
     assert_equal(s.total, 2)
-    assert_equal(s.today, 1)   # only p1 (p2 was 25h ago)
-    assert_equal(s.total_views, 10)
+    assert_equal(s.today, 2)
+    # total_views starts at 0; initial paste.views is stored on the row but
+    # does not seed stats.total_views — only db_inc_views does.
+    assert_equal(s.total_views, 0)
+
+    # Record 3 views on p1 and 7 on p2; stats counter must reflect them.
+    db_inc_views(db, "s1")
+    db_inc_views(db, "s1")
+    db_inc_views(db, "s1")
+    db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
+    db_inc_views(db, "s2")
+    var s2 = db_stats(db)
+    assert_equal(s2.total_views, 10)
 
 
 def test_db_update() raises:
