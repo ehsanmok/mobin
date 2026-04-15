@@ -18,10 +18,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.3.2-pyhc90fa1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gcc-15.2.0-h6f77f03_18.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gcc_impl_linux-64-15.2.0-he420e7e_18.conda
@@ -30,7 +30,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-h33c6efd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -57,7 +57,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/linux-64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/linux-64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
@@ -66,7 +66,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -81,10 +81,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/simdjson-4.6.1-hb700be7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.28-h4ee821c_9.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -93,7 +93,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ukkonen-1.1.0-py314h9891dd4_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h280c20c_3.conda
@@ -112,10 +112,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.3.2-pyhc90fa1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gcc-15.2.0-h24a549f_18.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gcc_impl_linux-aarch64-15.2.0-hcedddb3_18.conda
@@ -123,7 +123,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gxx_impl_linux-aarch64-15.2.0-h03e2352_18.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -150,7 +150,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/linux-aarch64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/linux-aarch64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ncurses-6.5-ha32ae93_3.conda
@@ -159,7 +159,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -174,10 +174,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/simdjson-4.6.1-hfefdfc9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-aarch64-2.28-h585391f_9.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/tk-8.6.13-noxft_h0dc03b3_103.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -186,7 +186,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ukkonen-1.1.0-py314hd7d8586_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/yaml-0.2.5-h80f16a2_3.conda
@@ -214,10 +214,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/compiler-rt_osx-arm64-22.1.3-hce30654_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/gcc-15.2.0-h45f3023_18.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/gcc_impl_osx-arm64-15.2.0-h6e619ee_18.conda
@@ -226,7 +226,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-hef89b57_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -260,7 +260,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.5-h5e97a16_3.conda
@@ -269,7 +269,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -285,10 +285,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sigtool-codesign-0.1.3-h98dc951_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/simdjson-4.6.1-h4ddebb9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tapi-1600.0.11.8-h997e182_2.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tk-8.6.13-h010d191_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -297,7 +297,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ukkonen-1.1.0-py314h6cfcd04_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/yaml-0.2.5-h925e9cb_3.conda
@@ -323,10 +323,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.3.2-pyhc90fa1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gcc-15.2.0-h6f77f03_18.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/gcc_impl_linux-64-15.2.0-he420e7e_18.conda
@@ -335,7 +335,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-h33c6efd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -362,7 +362,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/linux-64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/linux-64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.5-h2d0b736_3.conda
@@ -371,7 +371,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -386,10 +386,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/simdjson-4.6.1-hb700be7_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.28-h4ee821c_9.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -398,7 +398,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ukkonen-1.1.0-py314h9891dd4_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: hb0f4dca_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h280c20c_3.conda
@@ -417,10 +417,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.3.2-pyhc90fa1f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gcc-15.2.0-h24a549f_18.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gcc_impl_linux-aarch64-15.2.0-hcedddb3_18.conda
@@ -428,7 +428,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/gxx_impl_linux-aarch64-15.2.0-h03e2352_18.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -455,7 +455,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/linux-aarch64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/linux-aarch64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ncurses-6.5-ha32ae93_3.conda
@@ -464,7 +464,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -479,10 +479,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-82.0.1-pyh332efcf_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/simdjson-4.6.1-hfefdfc9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-aarch64-2.28-h585391f_9.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/tk-8.6.13-noxft_h0dc03b3_103.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -491,7 +491,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ukkonen-1.1.0-py314hd7d8586_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: he8cfe8b_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/yaml-0.2.5-h80f16a2_3.conda
@@ -519,10 +519,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/compiler-rt_osx-arm64-22.1.3-hce30654_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.4-py314hd8ed1ab_100.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.0-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+      - conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.25.2-pyhd8ed1ab_0.conda
-      - conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+      - conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/gcc-15.2.0-h45f3023_18.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/gcc_impl_osx-arm64-15.2.0-h6e619ee_18.conda
@@ -531,7 +531,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-hef89b57_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/identify-2.6.18-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.8.0-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+      - conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_client-8.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_core-5.9.1-pyhc90fa1f_0.conda
@@ -565,7 +565,7 @@ environments:
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/osx-arm64/mojo-compiler-0.26.3.0.dev2026041305-release.conda
       - conda: https://conda.modular.com/max-nightly/noarch/mojo-python-0.26.3.0.dev2026041305-release.conda
-      - conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+      - conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/mypy_extensions-1.1.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ncurses-6.5-h5e97a16_3.conda
@@ -574,7 +574,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/packaging-26.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pathspec-1.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/platformdirs-4.9.6-pyhcf101f3_0.conda
-      - conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+      - conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.5.1-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyh29332c3_1.conda
@@ -590,10 +590,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/sigtool-codesign-0.1.3-h98dc951_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/simdjson-4.6.1-h4ddebb9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
-      - conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+      - conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tapi-1600.0.11.8-h997e182_2.conda
-      - conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+      - conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/tk-8.6.13-h010d191_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
@@ -602,7 +602,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.15.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ukkonen-1.1.0-py314h6cfcd04_0.conda
-      - conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+      - conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
         build: h60d57d3_0
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-21.2.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/yaml-0.2.5-h925e9cb_3.conda
@@ -919,7 +919,7 @@ packages:
   license_family: APACHE
   size: 275642
   timestamp: 1752823081585
-- conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+- conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
   name: envo
   version: 0.1.0
   build: h60d57d3_0
@@ -930,7 +930,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+- conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
   name: envo
   version: 0.1.0
   build: hb0f4dca_0
@@ -941,7 +941,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/envo?branch=main#2c494f9b087802b1872e225952dbf2f6a37e384f
+- conda: git+https://github.com/ehsanmok/envo?tag=v0.1.0#929af98895f73cd616e19bc8921771e8cdbccfe9
   name: envo
   version: 0.1.0
   build: he8cfe8b_0
@@ -960,9 +960,9 @@ packages:
   license: Unlicense
   size: 25845
   timestamp: 1773314012590
-- conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+- conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
   name: flare
-  version: 0.0.1
+  version: 0.1.0
   build: h60d57d3_0
   subdir: osx-arm64
   variants:
@@ -976,9 +976,9 @@ packages:
   - libcxx >=22
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+- conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
   name: flare
-  version: 0.0.1
+  version: 0.1.0
   build: hb0f4dca_0
   subdir: linux-64
   variants:
@@ -993,9 +993,9 @@ packages:
   - libgcc >=15
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/flare?branch=main#0eece36faf78ff95e92007b067f2ab963ccddc33
+- conda: git+https://github.com/ehsanmok/flare?tag=v0.1.0#98a95542edf15e249257b4e76180516744dba12e
   name: flare
-  version: 0.0.1
+  version: 0.1.0
   build: he8cfe8b_0
   subdir: linux-aarch64
   variants:
@@ -1194,7 +1194,7 @@ packages:
   license_family: APACHE
   size: 34387
   timestamp: 1773931568510
-- conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+- conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
   name: json
   version: 0.1.0
   build: h60d57d3_0
@@ -1207,7 +1207,7 @@ packages:
   - libcxx >=22
   channel: null
   license: Apache-2.0
-- conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+- conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
   name: json
   version: 0.1.0
   build: hb0f4dca_0
@@ -1221,7 +1221,7 @@ packages:
   - libgcc >=15
   channel: null
   license: Apache-2.0
-- conda: git+https://github.com/ehsanmok/json?branch=main#88c7852b76ac570ea9bd727aec74ad71fd775ee5
+- conda: git+https://github.com/ehsanmok/json?tag=v0.1.0#1b18c1a6ca3c0dea6d8bef4a2e154a27fd2b9fc1
   name: json
   version: 0.1.0
   build: he8cfe8b_0
@@ -2037,7 +2037,7 @@ packages:
   license: LicenseRef-Modular-Proprietary
   size: 23195
   timestamp: 1776060226796
-- conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+- conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
   name: morph
   version: 0.1.0
   build: h60d57d3_0
@@ -2048,7 +2048,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+- conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
   name: morph
   version: 0.1.0
   build: hb0f4dca_0
@@ -2059,7 +2059,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/morph?branch=main#f18c84fe9528b626387f4d941298218d5a01a8bf
+- conda: git+https://github.com/ehsanmok/morph?tag=v0.1.0#f2aadeac3e2e432d9a38fd5f47e5838dcf2ebe0b
   name: morph
   version: 0.1.0
   build: he8cfe8b_0
@@ -2174,7 +2174,7 @@ packages:
   license_family: MIT
   size: 25862
   timestamp: 1775741140609
-- conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+- conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
   name: pprint
   version: 0.0.1
   build: h60d57d3_0
@@ -2185,7 +2185,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+- conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
   name: pprint
   version: 0.0.1
   build: hb0f4dca_0
@@ -2196,7 +2196,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/pprint?branch=main#0e88429f4163229c8ecaffeeb4131b3db113e76b
+- conda: git+https://github.com/ehsanmok/pprint?tag=v0.1.0#86bd2b55c46bdbe4a271bece1a2ed10bc7ae4ca2
   name: pprint
   version: 0.0.1
   build: he8cfe8b_0
@@ -2527,7 +2527,7 @@ packages:
   license_family: MIT
   size: 18455
   timestamp: 1753199211006
-- conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+- conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
   name: sqlite
   version: 0.1.0
   build: h60d57d3_0
@@ -2538,7 +2538,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+- conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
   name: sqlite
   version: 0.1.0
   build: hb0f4dca_0
@@ -2549,7 +2549,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/sqlite?branch=main#c46501480446bf2ff848ba14a125f51b431e496e
+- conda: git+https://github.com/ehsanmok/sqlite?tag=v0.1.0#e95bbdfafb79e9ecbb2441058c912e308f4d0502
   name: sqlite
   version: 0.1.0
   build: he8cfe8b_0
@@ -2592,7 +2592,7 @@ packages:
   license: NCSA
   size: 200192
   timestamp: 1775657222120
-- conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+- conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
   name: tempo
   version: 0.1.0
   build: h60d57d3_0
@@ -2603,7 +2603,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+- conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
   name: tempo
   version: 0.1.0
   build: hb0f4dca_0
@@ -2614,7 +2614,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/tempo?branch=main#5bfd8724e2b5b3bffc0c5b8b4af3d6f7b0434439
+- conda: git+https://github.com/ehsanmok/tempo?tag=v0.1.0#f13ee6b345a57405909306c263efe7b7d5209bbf
   name: tempo
   version: 0.1.0
   build: he8cfe8b_0
@@ -2772,7 +2772,7 @@ packages:
   license_family: MIT
   size: 14884
   timestamp: 1769439056290
-- conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+- conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
   name: uuid
   version: 0.1.0
   build: h60d57d3_0
@@ -2783,7 +2783,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+- conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
   name: uuid
   version: 0.1.0
   build: hb0f4dca_0
@@ -2794,7 +2794,7 @@ packages:
   - mojo <1.0
   channel: null
   license: MIT
-- conda: git+https://github.com/ehsanmok/uuid?branch=main#02d88d827a2d871b86f7dc8fbc4ab4213c1db232
+- conda: git+https://github.com/ehsanmok/uuid?tag=v0.1.0#a6960240c86e0361f9d284706f0ad158e899324b
   name: uuid
   version: 0.1.0
   build: he8cfe8b_0
