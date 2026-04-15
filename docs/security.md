@@ -4,7 +4,7 @@
 |------|--------|-------|
 | Unicode support | Handled | Multi-byte UTF-8 (CJK, emoji, Arabic) roundtrips correctly |
 | Input validation | Handled | Empty body, malformed JSON, wrong field types -> `400` |
-| Oversized payloads | Handled | >2 MB -> `413 Content Too Large` |
+| Oversized payloads | Handled | >64 KB (configurable via `MAX_SIZE` env var) -> `413 Content Too Large` |
 | Null bytes | Handled | `\x00` in content -> `400 Bad Request` |
 | SQL injection | Handled | All queries use parameterised SQLite statements |
 | XSS | Handled | Frontend uses `textContent` / `esc()`, no `innerHTML` on user data |

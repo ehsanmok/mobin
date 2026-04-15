@@ -38,11 +38,12 @@ docker compose up --build
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `HOST` | `0.0.0.0` | Bind address for HTTP and WS servers |
 | `PORT` | `8080` | HTTP server port |
 | `WS_PORT` | `8081` | WebSocket server port |
 | `DB_PATH` | `data/mobin.db` | SQLite database file path |
-| `MAX_SIZE` | `65536` | Max paste size in bytes |
-| `TTL_SECS` | `2592000` | Server-side default paste expiry in seconds (30 days) |
+| `MAX_SIZE` | `65536` | Max paste size in bytes (64 KB) |
+| `TTL_DAYS` | `30` | Default paste time-to-live in days |
 
 ## Commands
 

@@ -64,8 +64,8 @@ struct PasteStats(Defaultable, Movable):
 struct ServerConfig(Defaultable, Movable):
     """Runtime configuration for the mobin backend.
 
-    Loaded via envo from config.toml, env vars, and CLI flags.
-    Precedence (highest to lowest): CLI > env vars > config.toml.
+    All values are read from environment variables at startup with
+    hard-coded fallback defaults.
 
     Fields:
         host:     Bind address for HTTP and WS servers.

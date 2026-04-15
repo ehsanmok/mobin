@@ -27,17 +27,13 @@ pixi run tests
 
 ## Configuration
 
-| Source | Priority |
-|--------|----------|
-| `config.toml` | lowest |
-| Environment variables | medium |
-| CLI flags | highest |
+All configuration is read from environment variables at startup:
 
-| Field | Env var | CLI | Default |
-|-------|---------|-----|---------|
-| `host` | `HOST` | `--host` | `0.0.0.0` |
-| `port` | `PORT` | `--port` | `8080` |
-| `ws_port` | `WS_PORT` | `--ws-port` | `8081` |
-| `db_path` | `DB_PATH` | `--db-path` | `data/mobin.db` |
-| `max_size` | `MAX_SIZE` | `--max-size` | `65536` |
-| `ttl_days` | `TTL_DAYS` | `--ttl-days` | `30` |
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `HOST` | `0.0.0.0` | Bind address for HTTP and WS servers |
+| `PORT` | `8080` | HTTP server port |
+| `WS_PORT` | `8081` | WebSocket server port |
+| `DB_PATH` | `data/mobin.db` | Path to SQLite database file |
+| `MAX_SIZE` | `65536` | Maximum paste size in bytes (64 KB) |
+| `TTL_DAYS` | `30` | Default paste time-to-live in days |

@@ -61,12 +61,19 @@ fly open
 
 ```yaml
 # .github/workflows/deploy.yml (already committed)
+# Deploys only after CI passes on main — triggered by workflow_run, not push.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    concurrency:
+      group: fly-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master

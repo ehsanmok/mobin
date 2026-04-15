@@ -23,13 +23,15 @@ and `ws://localhost:8081` (WebSocket feed). Make sure the backend is running.
 
 ## Configuration
 
-The frontend uses `window.location.hostname` to determine API and WS URLs,
-so it works on any host without code changes:
+The frontend auto-detects the environment using the page protocol and requires no code changes across local and production deployments:
 
 ```javascript
-const API = window.location.protocol + '//' + HOST + ':8080';
-const WS  = 'ws://' + HOST + ':8081/feed';
+const HOST      = window.location.hostname;
+const IS_PROD   = window.location.protocol === 'https:';
+const API       = IS_PROD ? window.location.origin : window.location.protocol + '//' + HOST + ':8080';
+const WS_SCHEME = IS_PROD ? 'wss' : 'ws';
+const WS        = WS_SCHEME + '://' + HOST + ':8081/feed';
 ```
 
-For production behind a reverse proxy, update these to use `/api/` paths
-and configure nginx proxy_pass accordingly.
+- **Local dev**: explicit ports `:8080` (HTTP) and `:8081` (WS)
+- **Production (HTTPS)**: API uses same origin (Fly.io routes 443 to 8080 internally), WS uses `wss://` on `:8081` (TLS terminated by Fly.io via dedicated IPv4)

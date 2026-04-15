@@ -7,7 +7,7 @@ A pastebin service built entirely in [Mojo](https://docs.modular.com/mojo/). Zer
 
 **Live demo: [mobin.fly.dev](https://mobin.fly.dev/)**
 
-- **Backend**: Mojo ([flare](https://github.com/ehsanmok/flare) HTTP + WS, [sqlite](https://github.com/ehsanmok/sqlite), [morph](https://github.com/ehsanmok/morph) JSON, [uuid](https://github.com/ehsanmok/uuid), [tempo](https://github.com/ehsanmok/tempo))
+- **Backend**: Mojo ([flare](https://github.com/ehsanmok/flare) HTTP + WS, [sqlite](https://github.com/ehsanmok/sqlite), [json](https://github.com/ehsanmok/json), [morph](https://github.com/ehsanmok/morph) serde, [uuid](https://github.com/ehsanmok/uuid), [tempo](https://github.com/ehsanmok/tempo))
 - **Frontend**: Vanilla JS + nginx, live feed via WebSocket, auto-removal of expired pastes
 - **Infra**: Docker Compose, single root `pixi.toml` (monorepo), GitHub Actions -> [Fly.io](https://fly.io) CD
 
