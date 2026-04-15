@@ -117,6 +117,9 @@ def router(
         if paste_id.byte_length() == 0:
             return error_response(Status.BAD_REQUEST, "missing paste id")
         if req.method == Method.GET:
+            var accept = req.headers.get("Accept")
+            if accept.find("text/html") >= 0:
+                return serve_index()
             return get_paste_handler(req, db, paste_id)
         if req.method == Method.PUT:
             return update_paste_handler(req, db, cfg, paste_id)
