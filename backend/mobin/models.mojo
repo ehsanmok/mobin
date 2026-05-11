@@ -41,7 +41,7 @@ struct Paste(Defaultable, Movable, ImplicitlyCopyable):
 
 
 @fieldwise_init
-struct PasteStats(Defaultable, Movable):
+struct PasteStats(Defaultable, ImplicitlyCopyable, Movable):
     """Aggregate statistics for the pastebin service.
 
     Fields:
@@ -61,7 +61,7 @@ struct PasteStats(Defaultable, Movable):
 
 
 @fieldwise_init
-struct MobinConfig(Defaultable, Movable):
+struct MobinConfig(Defaultable, ImplicitlyCopyable, Movable):
     """Runtime configuration for the mobin backend.
 
     All values are read from environment variables at startup with

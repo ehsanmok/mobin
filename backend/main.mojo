@@ -30,41 +30,21 @@ Usage:
 from std.ffi import external_call
 from std.os import getenv, makedirs
 from sqlite import Database
-from flare.http import HttpServer, Request, Response
+from flare.http import HttpServer
 from flare.ws import WsServer, WsConnection
 from flare.net import SocketAddr
 
 from mobin import (
+    AppState,
     MobinConfig,
     init_db,
     db_purge_expired,
-    router,
+    build_router,
     feed_handler,
 )
 
 
 # ── Per-request handlers ──────────────────────────────────────────────────────
-
-
-def _http_handler(req: Request) raises -> Response:
-    """Handle one HTTP request.
-
-    Opens a fresh SQLite connection per request using ``DB_PATH`` from the
-    process environment.
-
-    Args:
-        req: Incoming HTTP request.
-
-    Returns:
-        HTTP response.
-    """
-    var db_path = getenv("DB_PATH", "data/mobin.db")
-    var db = Database(db_path)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=NORMAL")
-    var cfg = MobinConfig()
-    cfg.db_path = db_path
-    return router(req, db, cfg)
 
 
 def _ws_handler(conn: WsConnection) raises:
@@ -190,10 +170,20 @@ def main() raises:
         raise Error("fork() failed (rc=" + String(pid) + ")")
 
     # ── Parent: HTTP server ───────────────────────────────────────────────────
+    #
+    # Build the v0.7 router once at startup with an immutable ``AppState``
+    # snapshot (db_path + ``MobinConfig``). The router is itself a
+    # ``Handler``, so it slots straight into ``HttpServer.serve(handler)``.
+    # Per-request handlers each open their own SQLite connection from
+    # ``state.db_path`` (cheap with WAL mode, multi-worker safe).
     try:
+        var cfg = MobinConfig()
+        cfg.db_path = db_path
+        var state = AppState(db_path=db_path, cfg=cfg)
+        var router = build_router(state)
         var srv = HttpServer.bind(SocketAddr.unspecified(UInt16(port)))
         print("HTTP server ready on :" + String(port))
-        srv.serve(_http_handler)
+        srv.serve(router^)
     except e:
         print("[http] fatal: " + String(e))
 

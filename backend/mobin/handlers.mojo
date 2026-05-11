@@ -335,12 +335,10 @@ def update_paste_handler(
     return ok_json(_paste_to_json(updated_opt.take()))
 
 
-def list_pastes_handler(
-    req: Request, db: Database, query: String
-) raises -> Response:
+def list_pastes_handler(req: Request, db: Database) raises -> Response:
     """Handle GET /pastes — paginated list of recent non-expired pastes.
 
-    Query parameters:
+    Query parameters (all read off ``req.query_param``):
         limit:     Number of results (default 20, max 100).
         offset:    Offset-based pagination offset (default 0).
                    Ignored when ``before`` is provided.
@@ -349,18 +347,22 @@ def list_pastes_handler(
         q:         Substring search filter applied to title and content.
 
     Args:
-        req:   HTTP request (unused beyond routing).
+        req:   HTTP request — ``query_param`` reads pull straight off
+               ``req.url`` so callers do not need to pre-split the query
+               string. Commit 7 will replace these reads with the typed
+               ``OptionalQueryInt[name]`` / ``OptionalQueryStr[name]``
+               extractors so the handler signature documents the
+               accepted parameters at the type level.
         db:    Open database connection.
-        query: URL query string.
 
     Returns:
         200 OK with ``{"pastes":[...],"count":<n>}`` and optionally
         ``"next_before":<unix_ts>`` for keyset pagination continuation.
     """
-    var limit = _parse_query_int(query, "limit", 20)
-    var offset = _parse_query_int(query, "offset", 0)
-    var before_ts = _parse_query_int(query, "before", 0)
-    var search = _parse_query_str(query, "q")
+    var limit = _parse_int(req.query_param("limit"), 20)
+    var offset = _parse_int(req.query_param("offset"), 0)
+    var before_ts = _parse_int(req.query_param("before"), 0)
+    var search = req.query_param("q")
 
     var pastes = db_list(db, limit, offset, before_ts, search)
     var arr = _pastes_to_json_array(pastes)
@@ -400,33 +402,17 @@ def stats_handler(req: Request, db: Database) raises -> Response:
 # ── Query string helpers ──────────────────────────────────────────────────────
 
 
-def _parse_query_int(query: String, key: String, default_val: Int) -> Int:
-    """Extract an integer value from a URL query string."""
-    var search = key + "="
-    var idx = query.find(search)
-    if idx < 0:
+def _parse_int(value: String, default_val: Int) -> Int:
+    """Parse ``value`` as an integer, returning ``default_val`` on failure.
+
+    Tiny shim over ``Int(value)`` that absorbs the parse error and folds
+    the empty-string case (returned by ``req.query_param`` when the
+    parameter is absent) into "use the default". Commit 7 replaces this
+    with the typed ``OptionalQueryInt[name]`` extractor.
+    """
+    if value.byte_length() == 0:
         return default_val
-    var start = idx + search.byte_length()
-    var end = query.find("&", start)
-    var val_str = (
-        String(from_utf8_lossy=query[byte=start:].as_bytes())
-        if end < 0
-        else String(from_utf8_lossy=query[byte=start:end].as_bytes())
-    )
     try:
-        return Int(val_str)
+        return Int(value)
     except:
         return default_val
-
-
-def _parse_query_str(query: String, key: String) -> String:
-    """Extract a string value from a URL query string."""
-    var search = key + "="
-    var idx = query.find(search)
-    if idx < 0:
-        return ""
-    var start = idx + search.byte_length()
-    var end = query.find("&", start)
-    if end < 0:
-        return String(from_utf8_lossy=query[byte=start:].as_bytes())
-    return String(from_utf8_lossy=query[byte=start:end].as_bytes())
