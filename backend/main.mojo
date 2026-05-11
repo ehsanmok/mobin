@@ -145,12 +145,20 @@ def main() raises:
         # throws (e.g. address already in use on restart, OS error).  We retry
         # up to MAX_WS_RESTARTS times with an exponential back-off cap of 16 s.
         comptime MAX_WS_RESTARTS = 10
+        # WS stays single-worker on purpose: ``feed_handler`` is a
+        # 500ms-poll-then-broadcast loop holding one DB read per
+        # iteration. Multi-worker would multiply DB reads + duplicate
+        # broadcasts, not throughput. Spell it as
+        # ``serve(handler, num_workers=1)`` anyway so the call site
+        # matches the v0.7 multicore-aware overload (where ``<= 1``
+        # falls back to the single-threaded reactor) instead of the
+        # legacy single-arg shape.
         var attempts = 0
         while attempts < MAX_WS_RESTARTS:
             try:
                 var ws_srv = WsServer.bind(SocketAddr.unspecified(UInt16(ws_port)))
-                print("WS server ready on :" + String(ws_port))
-                ws_srv.serve(_ws_handler)
+                print("WS server ready on :" + String(ws_port) + " (1 worker)")
+                ws_srv.serve(_ws_handler, num_workers=1)
                 # serve() returned cleanly (shutdown signal) — exit without retry.
                 break
             except e:
