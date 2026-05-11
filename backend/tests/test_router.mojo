@@ -394,6 +394,81 @@ def test_request_id_generated() raises:
     assert_true(resp.headers.get("X-Request-Id").byte_length() > 0)
 
 
+def test_invalid_query_int_returns_400() raises:
+    """``?limit=abc`` short-circuits at the typed-extractor edge.
+
+    ``OptionalQueryInt["limit"]`` parses the query string into an
+    ``Optional[Int]`` and raises when the value is non-numeric. The
+    per-route ``Handler.serve`` wraps the extractor calls in
+    ``try/except e: return bad_request(String(e))`` so the route turns
+    into a 400 instead of a 500 — the v0.7 typed-extractor failure
+    contract this test locks in.
+    """
+    var router = _setup()
+    var resp = router.serve(_get("/pastes?limit=not-a-number"))
+    assert_equal(resp.status, Status.BAD_REQUEST)
+
+
+def test_invalid_query_offset_returns_400() raises:
+    """``?offset=`` non-int value returns 400 via the same path as
+    ``?limit``. Covers the second extractor on the list route to make
+    sure the try/except guard wraps every extractor call, not just the
+    first one."""
+    var router = _setup()
+    var resp = router.serve(_get("/pastes?offset=xyz"))
+    assert_equal(resp.status, Status.BAD_REQUEST)
+
+
+def test_invalid_json_body_returns_400() raises:
+    """``POST /paste`` with a malformed JSON body returns 400.
+
+    The handler runs ``morph.json.read[CreateRequest,
+    default_if_missing=True](body)`` after the router-level extractors
+    have pulled the body string out — when the parser raises on
+    invalid JSON, ``create_paste_handler`` returns
+    ``bad_request("invalid JSON: " + ...)`` so the caller sees a 400
+    instead of a generic 500.
+    """
+    var router = _setup()
+    var resp = router.serve(_post("/paste", "{ this is not json"))
+    assert_equal(resp.status, Status.BAD_REQUEST)
+
+
+def test_empty_body_create_returns_400() raises:
+    """``POST /paste`` with an empty body returns 400.
+
+    Empty body parses to a default-initialised ``CreateRequest`` (all
+    fields blank) and fails the ``content cannot be empty`` validation
+    check — converted to 400 via ``bad_request`` in
+    ``create_paste_handler``.
+    """
+    var router = _setup()
+    var resp = router.serve(_post("/paste", ""))
+    assert_equal(resp.status, Status.BAD_REQUEST)
+
+
+def test_update_empty_body_returns_400() raises:
+    """PUT with an empty body returns 400.
+
+    ``update_paste_handler`` short-circuits to
+    ``bad_request("request body is required")`` when ``body`` is
+    empty — exercises the same body-required guard as POST while
+    also locking in the auth-check ordering: the empty body is
+    rejected only AFTER the X-Delete-Token check passes (so the
+    response is 400, not 401, when the caller supplied a valid
+    token).
+    """
+    var router = _setup()
+    var create_body = '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
+    var create_resp = router.serve(_post("/paste", create_body))
+    var resp_str = _body_str(create_resp)
+    var paste_id = _extract_field(resp_str, "id")
+    var delete_token = _extract_field(resp_str, "delete_token")
+
+    var resp = router.serve(_put("/paste/" + paste_id, "", delete_token))
+    assert_equal(resp.status, Status.BAD_REQUEST)
+
+
 def test_get_paste_browser_returns_spa() raises:
     """``Accept: text/html`` on /paste/:id returns the SPA shell, not JSON.
 
@@ -432,5 +507,10 @@ def main() raises:
     test_options_includes_put()
     test_request_id_echoed()
     test_request_id_generated()
+    test_invalid_query_int_returns_400()
+    test_invalid_query_offset_returns_400()
+    test_invalid_json_body_returns_400()
+    test_empty_body_create_returns_400()
+    test_update_empty_body_returns_400()
     test_get_paste_browser_returns_spa()
     print("test_router: all tests passed")
