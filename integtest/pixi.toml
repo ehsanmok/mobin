@@ -14,8 +14,17 @@ websockets = ">=13,<14"
 locust  = ">=2.31,<3"
 
 [tasks]
-# Run integration tests (requires backend to be running on :8080)
-test     = { cmd = "pytest test_api.py test_health.py -v" }
+# Functional tests against a backend the conftest spins up automatically
+# (test_api.py + test_health.py + scenarios/). Skips test_frontend.py
+# which requires the full docker-compose stack (nginx on :3000).
+test = { cmd = "pytest test_api.py test_health.py scenarios -v" }
+# Smoke tests only — fast subset that exercises the v0.7 surface
+# (Cors, RequestId, multi-worker HTTP, WS feed) without the broader
+# CRUD coverage in test_api.py.
+test-smoke = { cmd = "pytest scenarios -v" }
+# Full sweep including the docker-compose-only frontend tests (will
+# fail unless ``docker compose up`` is running with the frontend
+# service on :3000).
 test-all = { cmd = "pytest . -v" }
 
 # Load test: headless mode, 50 concurrent users, 10/s spawn rate, 60s run

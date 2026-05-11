@@ -27,9 +27,14 @@ import httpx
 import pytest
 
 
-BACKEND_BIN = Path(__file__).parent.parent / "backend" / "mobin-backend"
-BACKEND_DIR = Path(__file__).parent.parent / "backend"
-PIXI_LIB_DIR = BACKEND_DIR / ".pixi" / "envs" / "default" / "lib"
+REPO_ROOT = Path(__file__).parent.parent
+BACKEND_BIN = REPO_ROOT / "backend" / "mobin-backend"
+BACKEND_DIR = REPO_ROOT / "backend"
+# mobin's mojo build env lives at the repo root, not under backend/. The
+# root pixi.toml is what pulls flare/json/morph/sqlite/tempo/uuid/envo/pprint
+# and runs the FFI activation hook that drops libflare_tls.so /
+# libflare_zlib.so into ``.pixi/envs/default/lib/``.
+PIXI_LIB_DIR = REPO_ROOT / ".pixi" / "envs" / "default" / "lib"
 HTTP_PORT = 18080   # Use high ports to avoid conflicts with dev server
 WS_PORT = 18081
 BASE_URL = f"http://localhost:{HTTP_PORT}"
@@ -121,13 +126,31 @@ def backend_url() -> Generator[str, None, None]:
         # Override ports so tests use high ports (no conflict with dev server)
         env["PORT"] = str(HTTP_PORT)
         env["WS_PORT"] = str(WS_PORT)
-        # FLARE_LIB: required for WebSocket SHA-1 handshake; flare looks for
-        # libflare_tls.so at this path when CONDA_PREFIX is not in the env.
-        flare_lib = PIXI_LIB_DIR / "libflare_tls.so"
-        if flare_lib.exists():
-            env["FLARE_LIB"] = str(flare_lib)
-        elif not env.get("CONDA_PREFIX"):
-            env["CONDA_PREFIX"] = str(PIXI_LIB_DIR.parent)
+        # The backend reaches into ``$CONDA_PREFIX/lib/libflare_tls.so``
+        # to load the WebSocket SHA-1 + TCP read/write bridge (see
+        # ``flare.net.socket._find_flare_lib`` in flare v0.7). When the
+        # integtest runs inside its own pixi env, ``CONDA_PREFIX``
+        # points at ``integtest/.pixi/envs/default`` — which does NOT
+        # ship ``libflare_tls.so``. Forcing ``CONDA_PREFIX`` (and
+        # ``LD_LIBRARY_PATH`` / ``DYLD_LIBRARY_PATH`` for good measure)
+        # to the root mobin pixi env lets the binary find the flare
+        # bridge plus the simdjson + openssl runtime deps it links
+        # against. The root activation script
+        # ``scripts/build_flare_ffi.sh`` is what drops the .so files
+        # there in the first place.
+        mobin_pixi_env = PIXI_LIB_DIR.parent  # .pixi/envs/default
+        if PIXI_LIB_DIR.joinpath("libflare_tls.so").exists():
+            env["CONDA_PREFIX"] = str(mobin_pixi_env)
+            existing_ld = env.get("LD_LIBRARY_PATH", "")
+            env["LD_LIBRARY_PATH"] = (
+                str(PIXI_LIB_DIR)
+                + (":" + existing_ld if existing_ld else "")
+            )
+            existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
+            env["DYLD_LIBRARY_PATH"] = (
+                str(PIXI_LIB_DIR)
+                + (":" + existing_dyld if existing_dyld else "")
+            )
 
         log_path = Path(tmpdir) / "backend.log"
         log_file = open(log_path, "w")

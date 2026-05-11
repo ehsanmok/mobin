@@ -151,28 +151,66 @@ class TestGetPaste:
 # ---------------------------------------------------------------------------
 
 class TestDeletePaste:
+    """``DELETE /paste/{id}`` requires the ``X-Delete-Token`` header
+    that ``POST /paste`` returns alongside the new paste.
+
+    flare v0.7's typed extractor stack short-circuits the route with
+    401 when the header is missing (``OptionalHeaderStr["X-Delete-
+    Token"]`` resolves to empty), and the handler returns 403 when
+    the header is present but does not match the stored token.
+    """
+
     def test_delete_returns_200(self, client: httpx.Client) -> None:
         created = create_paste(client)
-        r = client.delete(f"/paste/{created['id']}")
+        r = client.delete(
+            f"/paste/{created['id']}",
+            headers={"X-Delete-Token": created["delete_token"]},
+        )
         assert r.status_code == 200
 
     def test_delete_removes_paste(self, client: httpx.Client) -> None:
         created = create_paste(client)
         paste_id = created["id"]
-        client.delete(f"/paste/{paste_id}")
+        client.delete(
+            f"/paste/{paste_id}",
+            headers={"X-Delete-Token": created["delete_token"]},
+        )
         r = client.get(f"/paste/{paste_id}")
         assert r.status_code == 404
 
     def test_delete_nonexistent_returns_404(self, client: httpx.Client) -> None:
-        r = client.delete("/paste/00000000-0000-0000-0000-000000000000")
+        # Even with a token the resource still has to exist; a 401 here
+        # would mask the not-found case, so we always send a token.
+        r = client.delete(
+            "/paste/00000000-0000-0000-0000-000000000000",
+            headers={"X-Delete-Token": "00000000-0000-0000-0000-000000000000"},
+        )
         assert r.status_code == 404
 
     def test_delete_twice_returns_404(self, client: httpx.Client) -> None:
         created = create_paste(client)
         paste_id = created["id"]
-        client.delete(f"/paste/{paste_id}")
-        r = client.delete(f"/paste/{paste_id}")
+        token = created["delete_token"]
+        client.delete(f"/paste/{paste_id}", headers={"X-Delete-Token": token})
+        r = client.delete(f"/paste/{paste_id}", headers={"X-Delete-Token": token})
         assert r.status_code == 404
+
+    def test_delete_without_token_returns_401(
+        self, client: httpx.Client
+    ) -> None:
+        created = create_paste(client)
+        r = client.delete(f"/paste/{created['id']}")
+        assert r.status_code == 401
+
+    def test_delete_with_wrong_token_returns_403(
+        self, client: httpx.Client
+    ) -> None:
+        created = create_paste(client)
+        r = client.delete(
+            f"/paste/{created['id']}",
+            headers={"X-Delete-Token": "00000000-0000-0000-0000-000000000000"},
+        )
+        assert r.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +272,10 @@ class TestListPastes:
     def test_deleted_paste_not_in_list(self, client: httpx.Client) -> None:
         created = create_paste(client)
         paste_id = created["id"]
-        client.delete(f"/paste/{paste_id}")
+        client.delete(
+            f"/paste/{paste_id}",
+            headers={"X-Delete-Token": created["delete_token"]},
+        )
         ids = [p["id"] for p in _list_items(client)]
         assert paste_id not in ids
 

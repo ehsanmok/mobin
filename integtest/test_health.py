@@ -45,12 +45,30 @@ def test_index_returns_html(client: httpx.Client) -> None:
 
 
 def test_cors_headers(client: httpx.Client) -> None:
-    """All API responses include CORS headers."""
-    r = client.get("/health")
+    """flare v0.7's ``Cors`` middleware only attaches
+    ``Access-Control-Allow-Origin`` when the request carries an
+    ``Origin`` header — same-origin / curl-style requests pass through
+    unchanged. So we send a browser-shaped ``Origin`` here and assert
+    the wildcard echo back."""
+    r = client.get("/health", headers={"Origin": "http://localhost:3000"})
     assert r.headers.get("access-control-allow-origin") == "*"
 
 
 def test_options_preflight(client: httpx.Client) -> None:
-    """OPTIONS /paste returns 204 for CORS preflight."""
-    r = client.options("/paste")
+    """flare v0.7's ``Cors`` middleware short-circuits OPTIONS only
+    when the request looks like a real CORS preflight: ``Origin`` +
+    ``Access-Control-Request-Method``. Without those headers the
+    request reaches the router which returns 405 (no OPTIONS route),
+    matching the spec's distinction between a same-origin OPTIONS and
+    a CORS preflight."""
+    r = client.options(
+        "/paste",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
     assert r.status_code == 204
+    assert r.headers.get("access-control-allow-origin") == "*"
+    assert "POST" in r.headers.get("access-control-allow-methods", "")

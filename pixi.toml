@@ -35,6 +35,23 @@ pre-commit = ">=4.2.0,<5"
 # backend/ which contains the mobin/ package.
 [activation]
 env = { MOJO_FLAGS = "-I ." }
+# flare v0.7 ships its FFI bridges (libflare_tls.so, libflare_zlib.so,
+# libflare_fs.so) as source-built shared libraries. The upstream
+# ``flare/pixi.toml`` runs ``flare/tls/ffi/build.sh`` and
+# ``flare/http/ffi/build.sh`` on activation so they are present
+# whenever someone develops *inside* the flare repo. When mobin pulls
+# flare via pixi-build (path or git source) only the ``.mojopkg`` lands
+# in ``$CONDA_PREFIX/lib/mojo/`` — the .so files never make it out of
+# the build-work cache, and the backend aborts at startup with
+# ``symbol not found: flare_read`` (the reactor's hot-path wrapper
+# around ``read(2)``/``write(2)`` exposed by libflare_tls.so).
+# ``scripts/build_flare_ffi.sh`` finds the latest flare build-work
+# tree, sources the upstream build scripts, and copies the freshly
+# built .so files into ``$CONDA_PREFIX/lib/`` where
+# ``flare.net.socket._find_flare_lib`` can resolve them at runtime.
+# Idempotent (skips when up to date) and silent on first-run install
+# before the cache is populated.
+scripts = ["scripts/build_flare_ffi.sh"]
 
 [environments]
 default = { features = ["dev"], solve-group = "default" }
