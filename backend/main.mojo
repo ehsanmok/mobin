@@ -27,11 +27,11 @@ Usage:
     DB_PATH=/tmp/my.db PORT=9000 ./mobin-backend
 """
 
-from std.ffi import external_call
 from std.os import getenv, makedirs
 from sqlite import Database
 from flare.http import HttpServer
 from flare.runtime import default_worker_count
+from flare.utils import SIGTERM, fork, kill, usleep
 from flare.ws import WsServer, WsConnection
 from flare.net import SocketAddr
 
@@ -137,7 +137,7 @@ def main() raises:
     # Mojo's AsyncRT TaskGroup which calls abort() if any exception escapes
     # a task.  A routine WS disconnection (NetworkError) would therefore kill
     # both servers.  fork() gives full OS-level isolation.
-    var pid = Int(external_call["fork", Int32]())
+    var pid = fork()
 
     if pid == 0:
         # ── Child: WebSocket server (with self-restart on failure) ────────────
@@ -178,7 +178,7 @@ def main() raises:
                     + "s): "
                     + String(e)
                 )
-                _ = external_call["sleep", Int32](Int32(backoff))
+                usleep(backoff * 1_000_000)
         if attempts >= MAX_WS_RESTARTS:
             print("[ws] fatal: exceeded max restarts, giving up")
         return  # child exits — Docker / OS will not restart it; HTTP parent continues
@@ -234,4 +234,4 @@ def main() raises:
         print("[http] fatal: " + String(e))
 
     # HTTP server exited — send SIGTERM to the WS child.
-    _ = external_call["kill", Int32](Int32(pid), Int32(15))
+    _ = kill(pid, SIGTERM)
