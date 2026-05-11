@@ -1,7 +1,7 @@
 """mobin — Mojo-powered pastebin backend.
 
 Public re-exports for the mobin package:
-- ``Paste``, ``PasteStats``, ``ServerConfig``, ``new_paste`` from models
+- ``Paste``, ``PasteStats``, ``MobinConfig``, ``new_paste`` from models
 - ``init_db``, ``db_create``, ``db_check_token``, ``db_get``, ``db_list``,
   ``db_list_since``, ``db_delete``, ``db_update``, ``db_purge_expired``,
   ``db_stats``, ``db_inc_views`` from db
@@ -9,7 +9,7 @@ Public re-exports for the mobin package:
 - ``feed_handler`` from feed
 """
 
-from .models import Paste, PasteStats, ServerConfig, new_paste
+from .models import Paste, PasteStats, MobinConfig, new_paste
 from .db import (
     init_db,
     db_create,

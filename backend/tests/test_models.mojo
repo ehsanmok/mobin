@@ -1,10 +1,10 @@
-"""Unit tests for mobin.models — Paste, PasteStats, ServerConfig, new_paste.
+"""Unit tests for mobin.models — Paste, PasteStats, MobinConfig, new_paste.
 
 Uses in-process function calls only; no network or database required.
 """
 
 from std.testing import assert_equal, assert_true, assert_false
-from mobin.models import Paste, PasteStats, ServerConfig, new_paste
+from mobin.models import Paste, PasteStats, MobinConfig, new_paste
 from tempo import Timestamp
 
 
@@ -48,9 +48,9 @@ def test_paste_stats_defaults() raises:
     assert_equal(s.total_views, 0)
 
 
-def test_server_config_defaults() raises:
-    """ServerConfig default init uses expected production defaults."""
-    var cfg = ServerConfig()
+def test_mobin_config_defaults() raises:
+    """MobinConfig default init uses expected production defaults."""
+    var cfg = MobinConfig()
     assert_equal(cfg.host, "0.0.0.0")
     assert_equal(cfg.port, 8080)
     assert_equal(cfg.ws_port, 8081)
@@ -115,7 +115,7 @@ def main() raises:
     test_paste_defaults()
     test_paste_fieldwise_init()
     test_paste_stats_defaults()
-    test_server_config_defaults()
+    test_mobin_config_defaults()
     test_new_paste_id_non_empty()
     test_new_paste_id_uuid_format()
     test_new_paste_fields()

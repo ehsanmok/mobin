@@ -61,11 +61,17 @@ struct PasteStats(Defaultable, Movable):
 
 
 @fieldwise_init
-struct ServerConfig(Defaultable, Movable):
+struct MobinConfig(Defaultable, Movable):
     """Runtime configuration for the mobin backend.
 
     All values are read from environment variables at startup with
     hard-coded fallback defaults.
+
+    Renamed from ``ServerConfig`` because ``flare.prelude`` re-exports
+    ``flare.http.server.ServerConfig`` as the framework's per-listener
+    config struct. Keeping the unprefixed name here would shadow the
+    framework type whenever a handler module wildcard-imports the
+    prelude (the canonical v0.7 import block).
 
     Fields:
         host:     Bind address for HTTP and WS servers.
@@ -88,7 +94,7 @@ struct ServerConfig(Defaultable, Movable):
 
         Reads PORT, WS_PORT, DB_PATH, MAX_SIZE, TTL_DAYS, HOST from the
         environment. Any env var that is absent or non-numeric silently falls
-        back to the default so that ServerConfig() satisfies Defaultable.
+        back to the default so that MobinConfig() satisfies Defaultable.
         """
         from std.os import getenv
         self.host    = getenv("HOST",    "0.0.0.0")

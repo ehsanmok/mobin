@@ -6,7 +6,7 @@ and URL path. Also handles CORS preflight OPTIONS requests.
 
 from flare.http import Request, Response, Status, Method
 from sqlite import Database
-from .models import ServerConfig
+from .models import MobinConfig
 from .handlers import (
     health_handler,
     create_paste_handler,
@@ -40,7 +40,7 @@ def _parse_path_query(url: String) -> Tuple[String, String]:
 
 
 def router(
-    req: Request, db: Database, cfg: ServerConfig
+    req: Request, db: Database, cfg: MobinConfig
 ) raises -> Response:
     """Central HTTP request router.
 

@@ -8,13 +8,13 @@ from std.testing import assert_equal, assert_true
 from sqlite import Database
 from flare.http import Request, Response, Status, Method
 from mobin.db import init_db, db_create
-from mobin.models import Paste, ServerConfig
+from mobin.models import Paste, MobinConfig
 from mobin.router import router
 
 
-def _cfg() -> ServerConfig:
-    """Return a test ServerConfig with sensible defaults."""
-    return ServerConfig(
+def _cfg() -> MobinConfig:
+    """Return a test MobinConfig with sensible defaults."""
+    return MobinConfig(
         host="127.0.0.1",
         port=8080,
         ws_port=8081,

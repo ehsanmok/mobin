@@ -10,7 +10,7 @@ from sqlite import Database
 from morph.json import write, read
 from uuid import uuid4
 from tempo import Timestamp
-from .models import Paste, PasteStats, ServerConfig, new_paste
+from .models import Paste, PasteStats, MobinConfig, new_paste
 from .db import (
     db_create,
     db_get,
@@ -178,7 +178,7 @@ def health_handler(req: Request) raises -> Response:
 
 
 def create_paste_handler(
-    req: Request, db: Database, cfg: ServerConfig
+    req: Request, db: Database, cfg: MobinConfig
 ) raises -> Response:
     """Handle POST /paste — create a new paste.
 
@@ -301,7 +301,7 @@ def delete_paste_handler(
 
 
 def update_paste_handler(
-    req: Request, db: Database, cfg: ServerConfig, paste_id: String
+    req: Request, db: Database, cfg: MobinConfig, paste_id: String
 ) raises -> Response:
     """Handle PUT /paste/{id} — update an existing paste.
 

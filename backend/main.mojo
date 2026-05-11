@@ -35,7 +35,7 @@ from flare.ws import WsServer, WsConnection
 from flare.net import SocketAddr
 
 from mobin import (
-    ServerConfig,
+    MobinConfig,
     init_db,
     db_purge_expired,
     router,
@@ -62,7 +62,7 @@ def _http_handler(req: Request) raises -> Response:
     var db = Database(db_path)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=NORMAL")
-    var cfg = ServerConfig()
+    var cfg = MobinConfig()
     cfg.db_path = db_path
     return router(req, db, cfg)
 
