@@ -71,4 +71,3 @@ docker compose up --build
 | [Deployment](docs/deployment.md) | Fly.io, VPS + Docker Compose, Caddy TLS, Litestream backup |
 | [Performance](docs/performance.md) | Local and live benchmarks |
 | [Security](docs/security.md) | Security checklist and resilience |
-| [Mojo DX](docs/mojo-dx.md) | Language friction points and what's been resolved |

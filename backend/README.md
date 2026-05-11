@@ -37,3 +37,4 @@ All configuration is read from environment variables at startup:
 | `DB_PATH` | `data/mobin.db` | Path to SQLite database file |
 | `MAX_SIZE` | `65536` | Maximum paste size in bytes (64 KB) |
 | `TTL_DAYS` | `30` | Default paste time-to-live in days |
+| `MOBIN_HTTP_WORKERS` | auto-detected CPU count | HTTP server worker count override |

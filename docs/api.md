@@ -14,6 +14,8 @@
 
 All responses include `Access-Control-Allow-Origin: *`.
 
+Every response also carries an `X-Request-Id` header for log correlation. If the client supplies `X-Request-Id` on the request it is echoed back unchanged; otherwise the server generates one.
+
 ## Stats
 
 The `/stats` endpoint returns cumulative counters that **never decrease**:

@@ -51,6 +51,20 @@ In local dev, explicit ports are used: `:8080` for API, `:8081` for WS.
 
 `fork()` is used instead of `parallelize` because `parallelize`'s `TaskGroup` calls `abort()` on any unhandled exception, so a routine WebSocket disconnection would kill both servers. Separate OS processes give full fault isolation: an EPIPE in the WS child does not affect the HTTP parent. The WS child also self-restarts up to 10 times with exponential back-off before giving up.
 
+## HTTP request flow
+
+The HTTP parent runs a multi-worker reactor: one pthread per CPU core, each binding its own `SO_REUSEPORT` listener on the same address. Override the worker count with `MOBIN_HTTP_WORKERS=N` (defaults to the auto-detected CPU count).
+
+Every request walks a fixed middleware chain before dispatch:
+
+```
+CatchPanic → RequestId → Logger → CORS → Router(:id captures) → handler
+```
+
+The router supports `:id` path captures (e.g. `/paste/:id`); per-route handlers receive already-parsed primitives (path/query/header/body) thanks to typed extractors at the routing edge. Each handler opens its own SQLite connection from `AppState.db_path` for the request, so worker threads share no mutable state.
+
+The WS child stays single-worker on purpose: `feed_handler` is a 500 ms-poll-then-broadcast loop holding one DB read per iteration, so multi-worker would multiply DB reads and duplicate broadcasts without adding throughput.
+
 ## Database
 
 Both processes open **independent** SQLite connections. WAL mode allows one writer and many concurrent readers without blocking.

@@ -44,6 +44,7 @@ docker compose up --build
 | `DB_PATH` | `data/mobin.db` | SQLite database file path |
 | `MAX_SIZE` | `65536` | Max paste size in bytes (64 KB) |
 | `TTL_DAYS` | `30` | Default paste time-to-live in days |
+| `MOBIN_HTTP_WORKERS` | auto-detected CPU count | HTTP server worker count override (set to `1` for single-threaded debugging, or to a fixed value to match a container CPU quota) |
 
 ## Commands
 
@@ -56,9 +57,9 @@ docker compose up --build
 | `pixi run run` | Build then immediately start the backend binary |
 | `pixi run serve-frontend` | Serve `frontend/src/` on `:3001` via Python HTTP (dev only) |
 | `pixi run tests` | Run all three unit-test suites (`test_models`, `test_db`, `test_router`) |
-| `pixi run test-models` | Unit tests for `Paste` / `PasteStats` / `ServerConfig` / `new_paste()` |
+| `pixi run test-models` | Unit tests for `Paste` / `PasteStats` / `MobinConfig` / `new_paste()` |
 | `pixi run test-db` | Unit tests for all SQLite helpers (`init_db`, CRUD, stats, expiry) |
-| `pixi run test-router` | Unit tests for URL routing, CORS preflight, 404 handling |
+| `pixi run test-router` | Unit tests for routing, middleware (CORS preflight, RequestId), and typed-extractor 4xx coverage |
 | `pixi run format` | Auto-format `mobin/`, `main.mojo`, and `tests/` with `mojo format` |
 
 ## Repo layout
@@ -82,10 +83,10 @@ mobin/
 │   ├── litestream.yml         <- Litestream replica config
 │   ├── mobin/
 │   │   ├── __init__.mojo      <- public re-exports
-│   │   ├── models.mojo        <- Paste, PasteStats, ServerConfig structs
+│   │   ├── models.mojo        <- Paste, PasteStats, MobinConfig, AppState structs
 │   │   ├── db.mojo            <- SQLite helpers (CRUD, stats table, expiry purge)
-│   │   ├── handlers.mojo      <- per-route handler functions
-│   │   ├── router.mojo        <- URL dispatch (method x path -> handler)
+│   │   ├── handlers.mojo      <- per-route handler functions (typed primitives in)
+│   │   ├── router.mojo        <- flare.Router + middleware chain wiring
 │   │   ├── feed.mojo          <- WebSocket live-feed loop + periodic expiry sweep
 │   │   └── static.mojo        <- embedded frontend HTML (served by backend directly)
 │   └── tests/
@@ -98,9 +99,11 @@ mobin/
 ├── integtest/
 │   ├── pixi.toml              <- test dependencies (pytest, httpx, websockets, locust)
 │   ├── Dockerfile             <- locust container image
-│   ├── test_api.py            <- 32 API + WebSocket integration tests
-│   ├── test_frontend.py       <- 6 frontend container smoke tests
-│   ├── test_health.py         <- 7 health/CORS tests
+│   ├── test_api.py            <- API + WebSocket integration tests
+│   ├── test_frontend.py       <- frontend container smoke tests
+│   ├── test_health.py         <- health/CORS tests
+│   ├── scenarios/
+│   │   └── test_smoke.py      <- CORS preflight, X-Request-Id, multi-worker /health, ws feed
 │   ├── locustfile.py          <- Locust load test scenarios
 │   └── conftest.py            <- shared fixtures (base URL, backend lifecycle)
 └── docs/                      <- you are here
@@ -108,20 +111,22 @@ mobin/
 
 ## Integration tests
 
-The integration suite runs **45 tests** against the live Docker Compose stack (from `integtest/`):
+The integration suite runs **48 tests** against a running backend (started by `conftest.py` from `backend/mobin-backend`):
 
 | Command | What it does |
 |---------|-------------|
 | `pixi install` | Install Python test dependencies (`pytest`, `httpx`, `websockets`, `locust`) |
-| `pixi run test` | Run HTTP + WebSocket integration tests against a running backend |
-| `pixi run test-all` | Run all tests including frontend container smoke tests |
+| `pixi run test` | Run `test_api.py` + `test_health.py` + `scenarios/` against the backend |
+| `pixi run test-smoke` | Run only `scenarios/` (CORS, X-Request-Id, multi-worker, ws feed) |
+| `pixi run test-all` | Adds `test_frontend.py` (requires the full Docker Compose stack) |
 | `pixi run load-test` | Headless Locust: 50 users, 5/s ramp, 60 s, against `http://localhost:8080` |
 | `pixi run load-ui` | Locust with web UI on `:8089`; set users and run time interactively |
 
 | File | Tests | Coverage |
 |------|-------|---------|
-| `test_api.py` | 32 | CRUD, pagination, search, stats, WebSocket live feed |
-| `test_frontend.py` | 6 | nginx serves HTML, SPA routing, API reachability, CORS |
-| `test_health.py` | 7 | Health probe, stats types, CORS headers, OPTIONS preflight |
+| `test_api.py` | 34 | CRUD, pagination, search, stats, WebSocket live feed, X-Delete-Token 401/403 |
+| `test_health.py` | 7 | Health probe, stats types, CORS headers (with `Origin`), OPTIONS preflight |
+| `scenarios/test_smoke.py` | 7 | CORS preflight (`OPTIONS` w/ `Origin` + `Access-Control-Request-Method`), X-Request-Id echo + autogen, concurrent `/health` (16 + 64 in flight), ws frame after create |
+| `test_frontend.py` | 6 | nginx serves HTML, SPA routing, API reachability, CORS (Compose-only) |
 
 Set `MOBIN_URL=http://my-server:8080` to run against an already-running instance.
