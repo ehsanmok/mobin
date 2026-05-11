@@ -270,9 +270,7 @@ struct _UpdatePasteHandler(Copyable, Handler, Movable):
             var token = _opt_header_str["X-Delete-Token"](req, String(""))
             var body = BodyText.extract(req).value
             var db = _open_db(self.db_path)
-            return update_paste_handler(
-                db, self.cfg, paste_id, token, body
-            )
+            return update_paste_handler(db, self.cfg, paste_id, token, body)
         except e:
             return bad_request(String(e))
 
@@ -432,9 +430,7 @@ def build_router(state: AppState) raises -> MobinApp:
     var cors = Cors(inner=router_handler^, config=_cors_config())
     var logger = Logger(inner=cors^, prefix="[mobin]")
     var with_id = RequestId(inner=logger^)
-    return CatchPanic(
-        inner=with_id^, body='{"error":"internal server error"}'
-    )
+    return CatchPanic(inner=with_id^, body='{"error":"internal server error"}')
 
 
 def build_app(state: AppState) raises -> MobinService:

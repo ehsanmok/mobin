@@ -159,7 +159,10 @@ def test_create_and_get_paste() raises:
     """Creating a paste and then fetching by ID returns the same content."""
     var router = _setup()
 
-    var create_body = '{"title":"My Paste","content":"hello world","language":"plain","ttl_secs":604800}'
+    var create_body = (
+        '{"title":"My Paste","content":"hello'
+        ' world","language":"plain","ttl_secs":604800}'
+    )
     var create_resp = router.serve(_post("/paste", create_body))
     assert_equal(create_resp.status, Status.OK)
 
@@ -167,7 +170,9 @@ def test_create_and_get_paste() raises:
     var create_body_str = _body_str(create_resp)
     var id_start = create_body_str.find('"id":"') + 6
     var id_end = create_body_str.find('"', id_start)
-    var paste_id = String(from_utf8_lossy=create_body_str[byte=id_start:id_end].as_bytes())
+    var paste_id = String(
+        from_utf8_lossy=create_body_str[byte=id_start:id_end].as_bytes()
+    )
 
     var get_resp = router.serve(_get("/paste/" + paste_id))
     assert_equal(get_resp.status, Status.OK)
@@ -197,10 +202,13 @@ def _extract_field(body: String, field: String) raises -> String:
 
 
 def test_delete_paste() raises:
-    """Checks DELETE /paste/{id} with correct token removes paste; subsequent GET returns 404."""
+    """Checks DELETE /paste/{id} with correct token removes paste; subsequent GET returns 404.
+    """
     var router = _setup()
 
-    var create_body = '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
+    var create_body = (
+        '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
+    )
     var create_resp = router.serve(_post("/paste", create_body))
     var resp_str = _body_str(create_resp)
     var paste_id = _extract_field(resp_str, "id")
@@ -210,7 +218,9 @@ def test_delete_paste() raises:
     var no_token_resp = router.serve(_delete("/paste/" + paste_id))
     assert_equal(no_token_resp.status, Status.UNAUTHORIZED)
 
-    var wrong_token_resp = router.serve(_delete("/paste/" + paste_id, "bad-token"))
+    var wrong_token_resp = router.serve(
+        _delete("/paste/" + paste_id, "bad-token")
+    )
     assert_equal(wrong_token_resp.status, Status.FORBIDDEN)
 
     # Correct token → 200 + subsequent GET → 404
@@ -255,7 +265,11 @@ def test_list_pagination() raises:
 
     # Create 4 pastes
     for i in range(4):
-        var b = '{"title":"T","content":"content' + String(i) + '","language":"plain","ttl_secs":604800}'
+        var b = (
+            '{"title":"T","content":"content'
+            + String(i)
+            + '","language":"plain","ttl_secs":604800}'
+        )
         _ = router.serve(_post("/paste", b))
 
     var resp = router.serve(_get("/pastes?limit=2"))
@@ -266,11 +280,15 @@ def test_list_pagination() raises:
 
 
 def test_update_paste() raises:
-    """Checks that PUT /paste/{id} with correct token updates the paste content."""
+    """Checks that PUT /paste/{id} with correct token updates the paste content.
+    """
     var router = _setup()
 
     # Create a paste
-    var create_body = '{"title":"Original","content":"old content","language":"plain","ttl_days":7}'
+    var create_body = (
+        '{"title":"Original","content":"old'
+        ' content","language":"plain","ttl_days":7}'
+    )
     var create_resp = router.serve(_post("/paste", create_body))
     assert_equal(create_resp.status, Status.OK)
     var resp_str = _body_str(create_resp)
@@ -290,8 +308,12 @@ def test_update_paste() raises:
     assert_equal(bad_token_resp.status, Status.FORBIDDEN)
 
     # Update with correct token → 200 with updated content
-    var update_body = '{"title":"Updated","content":"new content","language":"python"}'
-    var update_resp = router.serve(_put("/paste/" + paste_id, update_body, delete_token))
+    var update_body = (
+        '{"title":"Updated","content":"new content","language":"python"}'
+    )
+    var update_resp = router.serve(
+        _put("/paste/" + paste_id, update_body, delete_token)
+    )
     assert_equal(update_resp.status, Status.OK)
     var update_str = _body_str(update_resp)
     assert_true(update_str.find("new content") >= 0)
@@ -314,7 +336,9 @@ def test_update_paste_partial() raises:
     """Checks that omitting fields in the PUT body preserves current values."""
     var router = _setup()
 
-    var create_body = '{"title":"Keep","content":"keep me","language":"go","ttl_days":7}'
+    var create_body = (
+        '{"title":"Keep","content":"keep me","language":"go","ttl_days":7}'
+    )
     var create_resp = router.serve(_post("/paste", create_body))
     var resp_str = _body_str(create_resp)
     var paste_id = _extract_field(resp_str, "id")
@@ -344,8 +368,24 @@ def test_list_search() raises:
     """Checks that GET /pastes?q=<term> returns only matching pastes."""
     var router = _setup()
 
-    _ = router.serve(_post("/paste", '{"title":"Python guide","content":"print hello","language":"python","ttl_days":7}'))
-    _ = router.serve(_post("/paste", '{"title":"Mojo intro","content":"var x = 1","language":"mojo","ttl_days":7}'))
+    _ = router.serve(
+        _post(
+            "/paste",
+            (
+                '{"title":"Python guide","content":"print'
+                ' hello","language":"python","ttl_days":7}'
+            ),
+        )
+    )
+    _ = router.serve(
+        _post(
+            "/paste",
+            (
+                '{"title":"Mojo intro","content":"var x ='
+                ' 1","language":"mojo","ttl_days":7}'
+            ),
+        )
+    )
 
     var resp = router.serve(_get("/pastes?q=Python"))
     assert_equal(resp.status, Status.OK)
@@ -459,7 +499,9 @@ def test_update_empty_body_returns_400() raises:
     token).
     """
     var router = _setup()
-    var create_body = '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
+    var create_body = (
+        '{"title":"T","content":"x","language":"plain","ttl_secs":604800}'
+    )
     var create_resp = router.serve(_post("/paste", create_body))
     var resp_str = _body_str(create_resp)
     var paste_id = _extract_field(resp_str, "id")

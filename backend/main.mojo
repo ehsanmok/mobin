@@ -109,13 +109,15 @@ def main() raises:
     SQLite connections, so there is no shared state across the fork.
     """
     var db_path = getenv("DB_PATH", "data/mobin.db")
-    var port    = Int(getenv("PORT", "8080"))
+    var port = Int(getenv("PORT", "8080"))
     var ws_port = Int(getenv("WS_PORT", "8081"))
 
     # Ensure the parent directory of the DB file exists.
     var slash_pos = db_path.rfind("/")
     if slash_pos > 0:
-        var dir_part = String(from_utf8_lossy=db_path[byte=:slash_pos].as_bytes())
+        var dir_part = String(
+            from_utf8_lossy=db_path[byte=:slash_pos].as_bytes()
+        )
         try:
             makedirs(dir_part, exist_ok=True)
         except:
@@ -156,7 +158,9 @@ def main() raises:
         var attempts = 0
         while attempts < MAX_WS_RESTARTS:
             try:
-                var ws_srv = WsServer.bind(SocketAddr.unspecified(UInt16(ws_port)))
+                var ws_srv = WsServer.bind(
+                    SocketAddr.unspecified(UInt16(ws_port))
+                )
                 print("WS server ready on :" + String(ws_port) + " (1 worker)")
                 ws_srv.serve(_ws_handler, num_workers=1)
                 # serve() returned cleanly (shutdown signal) — exit without retry.
@@ -166,8 +170,12 @@ def main() raises:
                 var backoff = min(1 << attempts, 16)  # 2, 4, 8 … capped at 16 s
                 print(
                     "[ws] error (attempt "
-                    + String(attempts) + "/" + String(MAX_WS_RESTARTS)
-                    + ", retry in " + String(backoff) + "s): "
+                    + String(attempts)
+                    + "/"
+                    + String(MAX_WS_RESTARTS)
+                    + ", retry in "
+                    + String(backoff)
+                    + "s): "
                     + String(e)
                 )
                 _ = external_call["sleep", Int32](Int32(backoff))

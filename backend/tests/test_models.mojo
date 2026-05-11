@@ -82,7 +82,8 @@ def test_new_paste_fields() raises:
 
 
 def test_new_paste_timestamps() raises:
-    """Checks that new_paste() sets created_at near now and expires_at ~7 days ahead."""
+    """Checks that new_paste() sets created_at near now and expires_at ~7 days ahead.
+    """
     var before = Int(Timestamp.now().unix_secs())
     var p = new_paste("T", "c", "plain", 604800)  # 7 days in seconds
     var after = Int(Timestamp.now().unix_secs())
@@ -97,7 +98,8 @@ def test_new_paste_timestamps() raises:
 
 
 def test_new_paste_ttl_one_day() raises:
-    """Checks that new_paste() with 86400 s (1 day) sets the correct expiry offset."""
+    """Checks that new_paste() with 86400 s (1 day) sets the correct expiry offset.
+    """
     var p = new_paste("T", "c", "plain", 86400)
     var diff = p.expires_at - p.created_at
     assert_true(diff >= 86399)

@@ -53,7 +53,10 @@ def test_init_db() raises:
     """Checks that init_db creates the pastes table without error."""
     var db = _open_db()
     # Verify table exists by inserting and querying
-    db.execute("INSERT INTO pastes (id, title, content, language, created_at, expires_at, views) VALUES ('x', '', 'c', 'plain', 1, 9999999999, 0)")
+    db.execute(
+        "INSERT INTO pastes (id, title, content, language, created_at,"
+        " expires_at, views) VALUES ('x', '', 'c', 'plain', 1, 9999999999, 0)"
+    )
     var stmt = db.prepare("SELECT COUNT(*) FROM pastes")
     var row = stmt.step()
     assert_true(row.__bool__())
@@ -177,7 +180,8 @@ def test_db_list_offset() raises:
 
 
 def test_db_list_since() raises:
-    """Checks that db_list_since returns only pastes created after since_secs."""
+    """Checks that db_list_since returns only pastes created after since_secs.
+    """
     var db = _open_db()
     var base = _now()
     var p_old = Paste(
@@ -276,7 +280,9 @@ def test_db_update() raises:
     db_create(db, p)
 
     var new_expires = p.expires_at + 3600
-    db_update(db, "upd-1", "Updated Title", "new content", "python", new_expires)
+    db_update(
+        db, "upd-1", "Updated Title", "new content", "python", new_expires
+    )
 
     var got = db_get(db, "upd-1")
     assert_true(got.__bool__())

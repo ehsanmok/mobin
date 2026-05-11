@@ -182,7 +182,9 @@ def create_paste_handler(
     var paste_json = _paste_to_json(paste)
     var response_json = (
         String(
-            from_utf8_lossy=paste_json[byte=: paste_json.byte_length() - 1].as_bytes()
+            from_utf8_lossy=paste_json[
+                byte = : paste_json.byte_length() - 1
+            ].as_bytes()
         )
         + ',"delete_token":"'
         + delete_token

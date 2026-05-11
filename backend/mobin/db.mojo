@@ -22,7 +22,7 @@ def _today_int() -> Int:
     var ts = _now()
     var days = ts // 86400
     # Convert days since epoch to YYYYMMDD.
-    #算法 from https://howardhinnant.github.io/date_algorithms.html
+    # 算法 from https://howardhinnant.github.io/date_algorithms.html
     var z = days + 719468
     var era = z // 146097 if z >= 0 else (z - 146096) // 146097
     var doe = z - era * 146097
@@ -99,7 +99,8 @@ def init_db(db: Database) raises:
     # swallow that error and treat it as a no-op.
     try:
         db.execute(
-            "ALTER TABLE pastes ADD COLUMN delete_token TEXT NOT NULL DEFAULT ''"
+            "ALTER TABLE pastes ADD COLUMN delete_token TEXT NOT NULL"
+            " DEFAULT ''"
         )
     except:
         pass  # column already present — nothing to do
@@ -119,11 +120,16 @@ def init_db(db: Database) raises:
     # Migration: add today_pastes/today_date columns for older schemas.
     # Must run BEFORE the INSERT so all columns exist.
     try:
-        db.execute("ALTER TABLE stats ADD COLUMN today_pastes INTEGER NOT NULL DEFAULT 0")
+        db.execute(
+            "ALTER TABLE stats ADD COLUMN today_pastes INTEGER NOT NULL"
+            " DEFAULT 0"
+        )
     except:
         pass
     try:
-        db.execute("ALTER TABLE stats ADD COLUMN today_date INTEGER NOT NULL DEFAULT 0")
+        db.execute(
+            "ALTER TABLE stats ADD COLUMN today_date INTEGER NOT NULL DEFAULT 0"
+        )
     except:
         pass
     db.execute(
@@ -180,9 +186,8 @@ def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     # reset today_pastes to 1 for the new day.
     var td = _today_int()
     var up = db.prepare(
-        "UPDATE stats SET total_pastes = total_pastes + 1,"
-        "  today_pastes = CASE WHEN today_date = ? THEN today_pastes + 1 ELSE 1 END,"
-        "  today_date = ?"
+        "UPDATE stats SET total_pastes = total_pastes + 1,  today_pastes = CASE"
+        " WHEN today_date = ? THEN today_pastes + 1 ELSE 1 END,  today_date = ?"
         " WHERE id = 1"
     )
     up.bind_int(1, td)
@@ -190,7 +195,9 @@ def db_create(db: Database, paste: Paste, delete_token: String = "") raises:
     _ = up.step()
 
 
-def db_check_token(db: Database, paste_id: String, token: String) raises -> Bool:
+def db_check_token(
+    db: Database, paste_id: String, token: String
+) raises -> Bool:
     """Check whether a delete token matches the stored token for a paste.
 
     Args:
@@ -247,9 +254,7 @@ def db_inc_views(db: Database, paste_id: String) raises:
     Raises:
         Error: On SQLite error.
     """
-    var stmt = db.prepare(
-        "UPDATE pastes SET views = views + 1 WHERE id = ?"
-    )
+    var stmt = db.prepare("UPDATE pastes SET views = views + 1 WHERE id = ?")
     stmt.bind_text(1, paste_id)
     _ = stmt.step()
 

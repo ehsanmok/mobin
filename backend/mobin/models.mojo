@@ -9,7 +9,7 @@ from tempo import Timestamp
 
 
 @fieldwise_init
-struct Paste(Defaultable, Movable, ImplicitlyCopyable):
+struct Paste(Defaultable, ImplicitlyCopyable, Movable):
     """A single paste entry stored in SQLite.
 
     Fields:
@@ -97,16 +97,17 @@ struct MobinConfig(Defaultable, ImplicitlyCopyable, Movable):
         back to the default so that MobinConfig() satisfies Defaultable.
         """
         from std.os import getenv
-        self.host    = getenv("HOST",    "0.0.0.0")
+
+        self.host = getenv("HOST", "0.0.0.0")
         self.db_path = getenv("DB_PATH", "data/mobin.db")
         try:
-            self.port     = Int(getenv("PORT",     "8080"))
+            self.port = Int(getenv("PORT", "8080"))
         except:
-            self.port     = 8080
+            self.port = 8080
         try:
-            self.ws_port  = Int(getenv("WS_PORT",  "8081"))
+            self.ws_port = Int(getenv("WS_PORT", "8081"))
         except:
-            self.ws_port  = 8081
+            self.ws_port = 8081
         try:
             self.max_size = Int(getenv("MAX_SIZE", "65536"))
         except:
