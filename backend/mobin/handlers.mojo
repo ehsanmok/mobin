@@ -1,14 +1,21 @@
 """HTTP request handlers for mobin pastebin API.
 
-Each handler corresponds to one API endpoint. Handlers read from the Request,
-interact with the database, and return a Response. JSON bodies use morph for
-struct serialization/deserialization.
+Each handler corresponds to one API endpoint. Handler functions receive
+already-typed parameters — primitives, parsed body strings, validated
+header tokens — produced by the typed extractors registered on the
+per-route ``Handler`` structs in ``router.mojo``. There is no
+``Request``-poking inside this file: query strings, headers, path
+captures, and JSON bodies are all extracted once at the routing edge,
+so an unexpected body shape, a non-integer ``limit``, or a missing
+``X-Delete-Token`` is a 400 / 401 from the router, never a runtime
+crash inside the handler.
 
-Builds on the v0.7 ``flare.prelude`` surface — every response goes through
-``ok`` / ``ok_json`` / ``bad_request`` / ``not_found`` / ``internal_error``;
-no per-handler ``Content-Type`` plumbing or hand-rolled byte-list builders
-remain. CORS headers are added by the ``Cors`` middleware in ``main.mojo``,
-so handler bodies stay focused on application logic.
+Builds on the v0.7 ``flare.prelude`` surface — every response goes
+through ``ok`` / ``ok_json`` / ``bad_request`` / ``not_found`` /
+``internal_error``; no per-handler ``Content-Type`` plumbing or
+hand-rolled byte-list builders remain. CORS headers are added by the
+``Cors`` middleware in ``router.mojo``, so handler bodies stay focused
+on application logic.
 """
 
 from flare.prelude import *
@@ -106,11 +113,8 @@ def _pastes_to_json_array(pastes: List[Paste]) raises -> String:
 # ── Handlers ──────────────────────────────────────────────────────────────────
 
 
-def health_handler(req: Request) raises -> Response:
+def health_handler() raises -> Response:
     """Handle GET /health — liveness probe.
-
-    Args:
-        req: Incoming HTTP request (unused).
 
     Returns:
         200 OK with ``{"status":"ok"}``.
@@ -119,29 +123,25 @@ def health_handler(req: Request) raises -> Response:
 
 
 def create_paste_handler(
-    req: Request, db: Database, cfg: MobinConfig
+    db: Database, cfg: MobinConfig, body: String
 ) raises -> Response:
     """Handle POST /paste — create a new paste.
 
-    Reads CreateRequest JSON from the request body, validates size,
-    creates a Paste, inserts into the database, and returns the new paste
-    plus a one-time delete_token.
+    Body parsing is done by the caller (the per-route Handler struct's
+    ``BodyText`` extractor) so this function gets a UTF-8 decoded
+    string. Empty / unparseable bodies are 400'd by the caller.
 
     Args:
-        req: HTTP request with JSON body.
-        db:  Open database connection.
-        cfg: Server configuration (max_size, ttl_days).
+        db:   Open database connection.
+        cfg:  Server configuration (max_size, ttl_days).
+        body: Raw JSON request body, already UTF-8 decoded.
 
     Returns:
-        200 OK with the full paste JSON object,
+        200 OK with the full paste JSON object plus ``delete_token``,
         or a 4xx error response on validation failure.
     """
-    if len(req.body) == 0:
+    if body.byte_length() == 0:
         return bad_request("request body is required")
-
-    # from_utf8_lossy replaces invalid UTF-8 bytes with U+FFFD rather than
-    # crashing; the JSON parser will reject structurally invalid input anyway.
-    var body = String(from_utf8_lossy=req.body)
 
     var cr: CreateRequest
     try:
@@ -191,17 +191,15 @@ def create_paste_handler(
     return ok_json(response_json)
 
 
-def get_paste_handler(
-    req: Request, db: Database, paste_id: String
-) raises -> Response:
+def get_paste_handler(db: Database, paste_id: String) raises -> Response:
     """Handle GET /paste/{id} — retrieve and view a paste.
 
     Increments the view counter on each successful fetch.
 
     Args:
-        req:      HTTP request (unused beyond routing).
         db:       Open database connection.
-        paste_id: UUID string of the paste to fetch.
+        paste_id: UUID string of the paste (extracted by the caller from
+                  the ``:id`` path capture via ``PathStr["id"]``).
 
     Returns:
         200 OK with Paste JSON, or 404 Not Found.
@@ -216,22 +214,25 @@ def get_paste_handler(
 
 
 def delete_paste_handler(
-    req: Request, db: Database, paste_id: String
+    db: Database, paste_id: String, token: String
 ) raises -> Response:
     """Handle DELETE /paste/{id} — remove a paste.
 
-    Requires the ``X-Delete-Token`` header containing the token that was
-    returned when the paste was created.
+    The caller (the per-route Handler struct) extracts the ``X-Delete-
+    Token`` header via ``OptionalHeaderStr["X-Delete-Token"]`` and
+    passes the value (or empty string when the header is absent) here.
 
     Args:
-        req:      HTTP request — must carry X-Delete-Token header.
         db:       Open database connection.
-        paste_id: UUID string of the paste to delete.
+        paste_id: UUID string of the paste (extracted from the ``:id``
+                  path capture).
+        token:    Value of the ``X-Delete-Token`` header, or empty
+                  string when the header was not sent.
 
     Returns:
-        200 OK on success; 401 missing token, 403 wrong token, 404 missing.
+        200 OK on success; 401 missing token, 403 wrong token, 404
+        missing paste.
     """
-    var token = req.headers.get("X-Delete-Token")
     if token == "":
         var resp = Response(status=Status.UNAUTHORIZED, reason="Unauthorized")
         resp.headers.set("Content-Type", "text/plain; charset=utf-8")
@@ -251,24 +252,29 @@ def delete_paste_handler(
 
 
 def update_paste_handler(
-    req: Request, db: Database, cfg: MobinConfig, paste_id: String
+    db: Database,
+    cfg: MobinConfig,
+    paste_id: String,
+    token: String,
+    body: String,
 ) raises -> Response:
     """Handle PUT /paste/{id} — update an existing paste.
 
-    Requires the ``X-Delete-Token`` header (the same token returned at
-    creation time). All body fields are optional; omitted or empty-string
-    fields preserve the current value.
+    All cross-cutting concerns (path capture, header read, body decode)
+    are pre-extracted by the caller. This function performs only the
+    application-level checks: token presence + match, paste existence,
+    body shape, and content limits.
 
     Args:
-        req:      HTTP request with optional JSON body fields.
         db:       Open database connection.
         cfg:      Server configuration (max_size).
-        paste_id: UUID string of the paste to update.
+        paste_id: UUID string of the paste (from the ``:id`` capture).
+        token:    Value of ``X-Delete-Token`` header (or empty string).
+        body:     Raw JSON body, already UTF-8 decoded.
 
     Returns:
         200 OK with the updated Paste JSON, or a 4xx/5xx error response.
     """
-    var token = req.headers.get("X-Delete-Token")
     if token == "":
         var resp = Response(status=Status.UNAUTHORIZED, reason="Unauthorized")
         resp.headers.set("Content-Type", "text/plain; charset=utf-8")
@@ -285,10 +291,9 @@ def update_paste_handler(
 
     var current = paste_opt.take()
 
-    if len(req.body) == 0:
+    if body.byte_length() == 0:
         return bad_request("request body is required")
 
-    var body = String(from_utf8_lossy=req.body)
     var ur: UpdateRequest
     try:
         ur = read[UpdateRequest, default_if_missing=True](body)
@@ -335,35 +340,34 @@ def update_paste_handler(
     return ok_json(_paste_to_json(updated_opt.take()))
 
 
-def list_pastes_handler(req: Request, db: Database) raises -> Response:
+def list_pastes_handler(
+    db: Database,
+    limit: Int,
+    offset: Int,
+    before_ts: Int,
+    search: String,
+) raises -> Response:
     """Handle GET /pastes — paginated list of recent non-expired pastes.
 
-    Query parameters (all read off ``req.query_param``):
-        limit:     Number of results (default 20, max 100).
-        offset:    Offset-based pagination offset (default 0).
-                   Ignored when ``before`` is provided.
-        before:    Keyset cursor — return only pastes older than this Unix
-                   timestamp.
-        q:         Substring search filter applied to title and content.
+    All query parameters are pre-parsed by the caller's typed extractors
+    (``OptionalQueryInt`` / ``OptionalQueryStr``); a present-but-
+    unparseable ``limit=abc`` is a 400 from the router, never an Int(0)
+    silently swallowed here.
 
     Args:
-        req:   HTTP request — ``query_param`` reads pull straight off
-               ``req.url`` so callers do not need to pre-split the query
-               string. Commit 7 will replace these reads with the typed
-               ``OptionalQueryInt[name]`` / ``OptionalQueryStr[name]``
-               extractors so the handler signature documents the
-               accepted parameters at the type level.
-        db:    Open database connection.
+        db:        Open database connection.
+        limit:     Max results (capped at 100 inside ``db_list``).
+        offset:    Offset-based pagination offset.  Ignored when
+                   ``before_ts > 0`` (keyset path).
+        before_ts: Keyset cursor — return only pastes older than this
+                   Unix timestamp.  ``0`` selects the offset path.
+        search:    Substring search filter applied to title and content.
+                   Empty string disables filtering.
 
     Returns:
         200 OK with ``{"pastes":[...],"count":<n>}`` and optionally
         ``"next_before":<unix_ts>`` for keyset pagination continuation.
     """
-    var limit = _parse_int(req.query_param("limit"), 20)
-    var offset = _parse_int(req.query_param("offset"), 0)
-    var before_ts = _parse_int(req.query_param("before"), 0)
-    var search = req.query_param("q")
-
     var pastes = db_list(db, limit, offset, before_ts, search)
     var arr = _pastes_to_json_array(pastes)
     var n = len(pastes)
@@ -376,12 +380,11 @@ def list_pastes_handler(req: Request, db: Database) raises -> Response:
     return ok_json(body)
 
 
-def stats_handler(req: Request, db: Database) raises -> Response:
+def stats_handler(db: Database) raises -> Response:
     """Handle GET /stats — aggregate statistics.
 
     Args:
-        req: HTTP request (unused).
-        db:  Open database connection.
+        db: Open database connection.
 
     Returns:
         200 OK with ``{"total":<n>,"today":<n>,"total_views":<n>}``.
@@ -397,22 +400,3 @@ def stats_handler(req: Request, db: Database) raises -> Response:
         + "}"
     )
     return ok_json(body)
-
-
-# ── Query string helpers ──────────────────────────────────────────────────────
-
-
-def _parse_int(value: String, default_val: Int) -> Int:
-    """Parse ``value`` as an integer, returning ``default_val`` on failure.
-
-    Tiny shim over ``Int(value)`` that absorbs the parse error and folds
-    the empty-string case (returned by ``req.query_param`` when the
-    parameter is absent) into "use the default". Commit 7 replaces this
-    with the typed ``OptionalQueryInt[name]`` extractor.
-    """
-    if value.byte_length() == 0:
-        return default_val
-    try:
-        return Int(value)
-    except:
-        return default_val

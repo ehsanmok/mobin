@@ -24,19 +24,27 @@ The handler chain wired up by ``build_router(state)``::
 - ``Router`` does method + path dispatch to the per-route handlers.
 
 Each per-route handler is a small ``Handler``-conforming struct that
-captures the slice of ``AppState`` it needs and opens its own SQLite
-connection per request. Path params are read via ``req.param("id")``;
-query parameters are read inside ``list_pastes_handler`` via
-``req.query_param``. Both reads are zero-allocation on the empty case.
+captures the slice of ``AppState`` it needs and uses flare v0.7's typed
+extractors (``PathStr``, ``OptionalQueryInt``, ``OptionalQueryStr``,
+``OptionalHeaderStr``, ``BodyText``) to pull request data into typed
+locals before delegating to the application-level handler functions in
+``handlers.mojo``. Parse failures (e.g. ``?limit=abc``) raise out of
+``.extract(req)`` and are caught at the wrapper boundary, turning them
+into ``400 Bad Request`` instead of leaking a 500.
 """
 
 from flare.prelude import *
 from flare.http import (
+    BodyText,
     CatchPanic,
     Cors,
     CorsConfig,
     Handler,
     Logger,
+    OptionalHeaderStr,
+    OptionalQueryInt,
+    OptionalQueryStr,
+    PathStr,
     RequestId,
 )
 from sqlite import Database
@@ -92,13 +100,63 @@ def _open_db(db_path: String) raises -> Database:
     return db^
 
 
-# ── Per-route Handler structs ────────────────────────────────────────────────
+# ── Per-route Handler structs (typed-extractor edge) ─────────────────────────
 #
 # Each route is wired through a tiny ``Handler``-conforming struct that
-# captures the slice of ``AppState`` it actually needs. This is the
-# transitional shape between the v0.1 closure-capture pattern (kept the
-# router function-typed) and the v0.7 typed-extractor pattern
-# (``Extracted[H]`` + per-field extractors, landing in commit 7).
+# captures the slice of ``AppState`` it actually needs and uses flare's
+# typed extractors as value-constructors (``Extractor.extract(req)``)
+# inside ``serve``. The wrapper is the boundary at which "request bytes"
+# stop and "typed application values" start: extractor errors are
+# caught here and mapped to 400 so the application-level handler in
+# ``handlers.mojo`` sees only validated typed inputs.
+#
+# Why not ``Extracted[H]``? ``Extracted[H]`` reflects on ``H``'s field
+# list and treats every field as an ``Extractor``, which means ``H``
+# can't carry state-capture fields (``db_path``, ``cfg``). Until the
+# v0.7 ``State[S]`` extractor lands (commit 8 wires up
+# ``App[AppState]``; ``State[S]`` injection itself is on the flare
+# roadmap), the value-constructor pattern is the right level of
+# integration: it keeps the per-route struct's state private while
+# still routing every request datum through a typed extractor.
+
+
+# ── Optional-query-int helper ────────────────────────────────────────────────
+#
+# ``OptionalQueryInt[name]`` returns ``Optional[Int]``: ``None`` when
+# the parameter is absent, ``Some(value)`` when present and parseable.
+# A *present-but-bad* value (``?limit=abc``) raises out of
+# ``.extract``; the wrapper's ``try/except`` catches it and returns
+# 400. This helper folds the ``if x.value: x.value.value() else
+# default`` pattern into a single line so the per-route ``serve``
+# bodies stay readable.
+
+
+@always_inline
+def _opt_int[name: StaticString](req: Request, default_val: Int) raises -> Int:
+    """Read optional query param ``name`` as ``Int``, defaulting to ``default_val``.
+    """
+    var x = OptionalQueryInt[name].extract(req)
+    return x.value.value() if x.value else default_val
+
+
+@always_inline
+def _opt_str[
+    name: StaticString
+](req: Request, default_val: String) raises -> String:
+    """Read optional query param ``name`` as ``String``, defaulting to ``default_val``.
+    """
+    var x = OptionalQueryStr[name].extract(req)
+    return x.value.value() if x.value else default_val
+
+
+@always_inline
+def _opt_header_str[
+    name: StaticString
+](req: Request, default_val: String) raises -> String:
+    """Read optional header ``name`` as ``String``, defaulting to ``default_val``.
+    """
+    var x = OptionalHeaderStr[name].extract(req)
+    return x.value.value() if x.value else default_val
 
 
 @fieldwise_init
@@ -114,7 +172,7 @@ struct _HealthHandler(Copyable, Handler, Movable):
     """``GET /health`` — liveness probe, no DB hit."""
 
     def serve(self, req: Request) raises -> Response:
-        return health_handler(req)
+        return health_handler()
 
 
 @fieldwise_init
@@ -125,30 +183,48 @@ struct _StatsHandler(Copyable, Handler, Movable):
 
     def serve(self, req: Request) raises -> Response:
         var db = _open_db(self.db_path)
-        return stats_handler(req, db)
+        return stats_handler(db)
 
 
 @fieldwise_init
 struct _ListPastesHandler(Copyable, Handler, Movable):
-    """``GET /pastes`` — paginated list, reads its own query string."""
+    """``GET /pastes`` — paginated list with typed query extractors.
+
+    The four query parameters are pulled through
+    ``OptionalQueryInt`` / ``OptionalQueryStr`` so a malformed
+    ``?limit=abc`` returns a clean 400 instead of falling through to a
+    silent default (which is what the pre-v0.7 ``_parse_int`` shim used
+    to do).
+    """
 
     var db_path: String
 
     def serve(self, req: Request) raises -> Response:
-        var db = _open_db(self.db_path)
-        return list_pastes_handler(req, db)
+        try:
+            var limit = _opt_int["limit"](req, 20)
+            var offset = _opt_int["offset"](req, 0)
+            var before_ts = _opt_int["before"](req, 0)
+            var search = _opt_str["q"](req, String(""))
+            var db = _open_db(self.db_path)
+            return list_pastes_handler(db, limit, offset, before_ts, search)
+        except e:
+            return bad_request(String(e))
 
 
 @fieldwise_init
 struct _CreatePasteHandler(Copyable, Handler, Movable):
-    """``POST /paste`` — create a new paste."""
+    """``POST /paste`` — create a new paste from a JSON body."""
 
     var db_path: String
     var cfg: MobinConfig
 
     def serve(self, req: Request) raises -> Response:
-        var db = _open_db(self.db_path)
-        return create_paste_handler(req, db, self.cfg)
+        try:
+            var body = BodyText.extract(req).value
+            var db = _open_db(self.db_path)
+            return create_paste_handler(db, self.cfg, body)
+        except e:
+            return bad_request(String(e))
 
 
 @fieldwise_init
@@ -160,17 +236,23 @@ struct _GetPasteHandler(Copyable, Handler, Movable):
     frontend so the SPA can render the paste client-side. Programmatic
     JSON requests (``Accept: application/json``, or any non-HTML accept)
     fall through to the JSON handler.
+
+    Both reads — the ``:id`` path capture and the ``Accept`` header —
+    go through typed extractors (``PathStr`` / ``OptionalHeaderStr``).
     """
 
     var db_path: String
 
     def serve(self, req: Request) raises -> Response:
-        var accept = req.headers.get("Accept")
-        if accept.find("text/html") >= 0:
-            return serve_index()
-        var db = _open_db(self.db_path)
-        var paste_id = req.param("id")
-        return get_paste_handler(req, db, paste_id)
+        try:
+            var accept = _opt_header_str["Accept"](req, String(""))
+            if accept.find("text/html") >= 0:
+                return serve_index()
+            var paste_id = PathStr["id"].extract(req).value
+            var db = _open_db(self.db_path)
+            return get_paste_handler(db, paste_id)
+        except e:
+            return bad_request(String(e))
 
 
 @fieldwise_init
@@ -181,9 +263,16 @@ struct _UpdatePasteHandler(Copyable, Handler, Movable):
     var cfg: MobinConfig
 
     def serve(self, req: Request) raises -> Response:
-        var db = _open_db(self.db_path)
-        var paste_id = req.param("id")
-        return update_paste_handler(req, db, self.cfg, paste_id)
+        try:
+            var paste_id = PathStr["id"].extract(req).value
+            var token = _opt_header_str["X-Delete-Token"](req, String(""))
+            var body = BodyText.extract(req).value
+            var db = _open_db(self.db_path)
+            return update_paste_handler(
+                db, self.cfg, paste_id, token, body
+            )
+        except e:
+            return bad_request(String(e))
 
 
 @fieldwise_init
@@ -193,9 +282,13 @@ struct _DeletePasteHandler(Copyable, Handler, Movable):
     var db_path: String
 
     def serve(self, req: Request) raises -> Response:
-        var db = _open_db(self.db_path)
-        var paste_id = req.param("id")
-        return delete_paste_handler(req, db, paste_id)
+        try:
+            var paste_id = PathStr["id"].extract(req).value
+            var token = _opt_header_str["X-Delete-Token"](req, String(""))
+            var db = _open_db(self.db_path)
+            return delete_paste_handler(db, paste_id, token)
+        except e:
+            return bad_request(String(e))
 
 
 # ── Router shim — Defaultable wrapper around flare.Router ────────────────────
@@ -233,9 +326,10 @@ struct MobinHandler(Copyable, Defaultable, Handler, Movable):
 
 # ── Public middleware-wrapped handler type ───────────────────────────────────
 #
-# The full type spelling out the middleware chain. ``alias`` lets callers
-# (``main.mojo``, the unit tests) declare a single concrete return /
-# variable type rather than chasing the nested generic spelling.
+# The full type spelling out the middleware chain. ``comptime`` lets
+# callers (``main.mojo``, the unit tests) declare a single concrete
+# return / variable type rather than chasing the nested generic
+# spelling.
 
 comptime MobinApp = CatchPanic[RequestId[Logger[Cors[MobinHandler]]]]
 
