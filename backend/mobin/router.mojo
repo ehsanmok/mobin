@@ -35,6 +35,7 @@ into ``400 Bad Request`` instead of leaking a 500.
 
 from flare.prelude import *
 from flare.http import (
+    App,
     BodyText,
     CatchPanic,
     Cors,
@@ -46,6 +47,7 @@ from flare.http import (
     OptionalQueryStr,
     PathStr,
     RequestId,
+    State,
 )
 from sqlite import Database
 from .models import MobinConfig
@@ -326,12 +328,24 @@ struct MobinHandler(Copyable, Defaultable, Handler, Movable):
 
 # ── Public middleware-wrapped handler type ───────────────────────────────────
 #
-# The full type spelling out the middleware chain. ``comptime`` lets
-# callers (``main.mojo``, the unit tests) declare a single concrete
-# return / variable type rather than chasing the nested generic
-# spelling.
+# Two ``comptime`` aliases spell the public types so ``main.mojo`` and
+# the unit tests don't have to chase the nested-generic spelling:
+#
+# * ``MobinApp`` — the bare middleware stack
+#   (``CatchPanic > RequestId > Logger > Cors > MobinHandler``).
+#   Returned by ``build_router`` and used by the unit tests, which
+#   want a concrete handler with no app-state plumbing on top.
+#
+# * ``MobinService`` — ``App[AppState, MobinApp]``, the production
+#   shape: the same middleware chain with an ``AppState`` snapshot
+#   bolted on so a future ``State[AppState]`` extractor (or any
+#   middleware that calls ``app.state_view()``) can pull
+#   request-independent state without a global. Returned by
+#   ``build_app``; this is what ``main.mojo`` hands to
+#   ``HttpServer.serve``.
 
 comptime MobinApp = CatchPanic[RequestId[Logger[Cors[MobinHandler]]]]
+comptime MobinService = App[AppState, MobinApp]
 
 
 # ── CORS configuration ──────────────────────────────────────────────────────
@@ -366,7 +380,7 @@ def _cors_config() -> CorsConfig:
 
 
 def build_router(state: AppState) raises -> MobinApp:
-    """Build the mobin handler chain (middleware + router + per-route handlers).
+    """Build the mobin middleware chain + router + per-route handlers.
 
     Routes registered:
 
@@ -384,12 +398,19 @@ def build_router(state: AppState) raises -> MobinApp:
     front of the router; the router itself does not register any
     ``OPTIONS`` routes.
 
+    Returns the *bare* middleware-wrapped chain — no ``App[AppState]``
+    wrapper. That makes it the right thing to dispatch through in
+    unit tests (``backend/tests/test_router.mojo``), which want to
+    drive ``serve`` without wiring the typed-state plumbing.
+    Production code goes through ``build_app`` instead, which wraps
+    this in ``App[AppState, MobinApp]``.
+
     Args:
         state: The DB-path + config snapshot all per-route handlers share.
 
     Returns:
         A ``MobinApp`` (``CatchPanic[RequestId[Logger[Cors[MobinHandler]]]]``)
-        ready to hand to ``HttpServer.serve``.
+        ready to hand to ``HttpServer.serve`` (or to wrap in ``App``).
     """
     var r = Router()
     r.get("/", _IndexHandler())
@@ -414,3 +435,30 @@ def build_router(state: AppState) raises -> MobinApp:
     return CatchPanic(
         inner=with_id^, body='{"error":"internal server error"}'
     )
+
+
+def build_app(state: AppState) raises -> MobinService:
+    """Build the production handler tree: ``App[AppState] > MobinApp``.
+
+    This is the v0.7-shaped entry point for ``HttpServer.serve``. The
+    ``App`` wrapper carries the ``AppState`` snapshot alongside the
+    middleware chain; the per-route handlers still capture their own
+    slice of state at registration time, so request-time state lookup
+    is a struct field read, not a hash lookup. The wrapper is
+    primarily a hook for the future v0.7 ``State[AppState]`` extractor
+    + any middleware that wants to call ``app.state_view()`` (the
+    pattern in ``flare/examples/intermediate/state.mojo``).
+
+    The returned ``App`` keeps an owned copy of ``state`` and the
+    full middleware-wrapped router; the caller transfers ownership of
+    both into the ``HttpServer`` via the standard ``serve(app^)``.
+
+    Args:
+        state: The shared DB-path + ``MobinConfig`` snapshot.
+
+    Returns:
+        A ``MobinService`` (``App[AppState, MobinApp]``) ready for
+        ``HttpServer.serve``.
+    """
+    var router = build_router(state)
+    return App(state=state, handler=router^)

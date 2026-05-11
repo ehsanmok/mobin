@@ -39,7 +39,7 @@ from mobin import (
     MobinConfig,
     init_db,
     db_purge_expired,
-    build_router,
+    build_app,
     feed_handler,
 )
 
@@ -171,19 +171,23 @@ def main() raises:
 
     # ── Parent: HTTP server ───────────────────────────────────────────────────
     #
-    # Build the v0.7 router once at startup with an immutable ``AppState``
-    # snapshot (db_path + ``MobinConfig``). The router is itself a
-    # ``Handler``, so it slots straight into ``HttpServer.serve(handler)``.
-    # Per-request handlers each open their own SQLite connection from
-    # ``state.db_path`` (cheap with WAL mode, multi-worker safe).
+    # Build the v0.7 ``App[AppState, MobinApp]`` once at startup with an
+    # immutable ``AppState`` snapshot (db_path + ``MobinConfig``). The
+    # ``App`` wrapper is itself a ``Handler``, so it slots straight into
+    # ``HttpServer.serve(handler)``. The per-route handlers inside the
+    # middleware chain each open their own SQLite connection from
+    # ``state.db_path`` (cheap with WAL mode, multi-worker safe);
+    # ``App`` keeps the canonical state snapshot for any future
+    # ``State[AppState]``-style middleware that wants to read it
+    # without going through a global.
     try:
         var cfg = MobinConfig()
         cfg.db_path = db_path
         var state = AppState(db_path=db_path, cfg=cfg)
-        var router = build_router(state)
+        var app = build_app(state)
         var srv = HttpServer.bind(SocketAddr.unspecified(UInt16(port)))
         print("HTTP server ready on :" + String(port))
-        srv.serve(router^)
+        srv.serve(app^)
     except e:
         print("[http] fatal: " + String(e))
 
