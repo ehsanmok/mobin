@@ -31,6 +31,7 @@ from std.ffi import external_call
 from std.os import getenv, makedirs
 from sqlite import Database
 from flare.http import HttpServer
+from flare.runtime import default_worker_count
 from flare.ws import WsServer, WsConnection
 from flare.net import SocketAddr
 
@@ -39,7 +40,7 @@ from mobin import (
     MobinConfig,
     init_db,
     db_purge_expired,
-    build_app,
+    build_router,
     feed_handler,
 )
 
@@ -169,25 +170,50 @@ def main() raises:
     if pid < 0:
         raise Error("fork() failed (rc=" + String(pid) + ")")
 
-    # ── Parent: HTTP server ───────────────────────────────────────────────────
+    # ── Parent: HTTP server (multi-worker SO_REUSEPORT) ───────────────────────
     #
-    # Build the v0.7 ``App[AppState, MobinApp]`` once at startup with an
-    # immutable ``AppState`` snapshot (db_path + ``MobinConfig``). The
-    # ``App`` wrapper is itself a ``Handler``, so it slots straight into
-    # ``HttpServer.serve(handler)``. The per-route handlers inside the
-    # middleware chain each open their own SQLite connection from
-    # ``state.db_path`` (cheap with WAL mode, multi-worker safe);
-    # ``App`` keeps the canonical state snapshot for any future
-    # ``State[AppState]``-style middleware that wants to read it
-    # without going through a global.
+    # Build the v0.7 ``MobinApp`` middleware-wrapped router once at
+    # startup with an immutable ``AppState`` snapshot (db_path +
+    # ``MobinConfig``). The router is itself a ``Handler & Copyable``,
+    # so it slots straight into the multi-worker
+    # ``HttpServer.serve(handler, num_workers=N)`` overload.
+    #
+    # Multi-worker serve (``num_workers=default_worker_count()``) spins
+    # up one pthread reactor per CPU core, each binding its own
+    # ``SO_REUSEPORT`` listener on the same address: the kernel hashes
+    # new 4-tuples to one of N listeners, giving near-linear scaling on
+    # IO-bound HTTP plaintext without contending on a single accept fd.
+    # Pinning is on by default on Linux (no-op on macOS). The
+    # ``MOBIN_HTTP_WORKERS`` env var lets ops override the auto-detected
+    # CPU count for benchmarking or container-CPU-quota scenarios.
+    #
+    # The per-route handlers inside the middleware chain each open
+    # their own SQLite connection from ``state.db_path`` per request
+    # (cheap with WAL mode, multi-worker safe — every worker gets its
+    # own connection per request, no shared state). ``build_app`` is
+    # kept available for the eventual ``App[AppState]`` runtime path
+    # but is unused here: ``App`` does not yet declare ``Copyable``,
+    # which the multi-worker overload's ``H: Handler & Copyable``
+    # bound requires.
     try:
         var cfg = MobinConfig()
         cfg.db_path = db_path
         var state = AppState(db_path=db_path, cfg=cfg)
-        var app = build_app(state)
+        var router = build_router(state)
+        var workers = Int(
+            getenv("MOBIN_HTTP_WORKERS", String(default_worker_count()))
+        )
+        if workers <= 0:
+            workers = 1
         var srv = HttpServer.bind(SocketAddr.unspecified(UInt16(port)))
-        print("HTTP server ready on :" + String(port))
-        srv.serve(app^)
+        print(
+            "HTTP server ready on :"
+            + String(port)
+            + " ("
+            + String(workers)
+            + " worker(s))"
+        )
+        srv.serve(router^, num_workers=workers)
     except e:
         print("[http] fatal: " + String(e))
 
