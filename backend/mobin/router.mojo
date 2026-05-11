@@ -1,25 +1,44 @@
-"""HTTP request routing for mobin pastebin, built on ``flare.Router``.
+"""HTTP routing + middleware stack for mobin pastebin.
 
-Routes are declared via ``r.get / r.post / r.put / r.delete`` with ``:id``
-path parameters. Each per-route handler is a small ``Handler`` struct that
-owns a snapshot of the application state (DB path + ``MobinConfig``) and
-opens its own SQLite connection per request from that path. SQLite's WAL
-mode + per-connection locking makes this safe across concurrent workers
-in a future commit (``num_workers=N``).
+The handler chain wired up by ``build_router(state)``::
 
-The hand-rolled ``if path == ...`` chain and the bespoke ``_parse_path_query``
-helper from the v0.1-shape router are gone — path parameter extraction
-goes through ``req.param("id")`` and the query string is read directly via
-``req.query_param(name)`` inside ``list_pastes_handler``.
+    CatchPanic
+      └── RequestId
+            └── Logger
+                  └── Cors
+                        └── MobinHandler   # Defaultable shim around Router
+                              └── Router   # method + path → per-route Handler
 
-CORS preflight (``OPTIONS *``) is currently handled by ``MobinHandler``,
-a thin wrapper around ``Router`` that intercepts the ``OPTIONS`` method.
-``MobinHandler`` is transitional: commit 6 deletes it and replaces the
-preflight with a proper ``flare.Cors`` middleware in front of the router.
+- ``CatchPanic`` turns any raise from the handler chain into a sanitised
+  500 response so a single bad request can never tear the server down.
+- ``RequestId`` echoes the inbound ``X-Request-Id`` (or generates one
+  derived from ``perf_counter_ns``) on the outbound response.
+- ``Logger`` prints ``method url status latency`` per request to stdout.
+- ``Cors`` runs the spec'd CORS dance: allowed-origin check, preflight
+  short-circuit (``OPTIONS`` + ``Access-Control-Request-Method``), and
+  outbound ``Access-Control-*`` header attachment.
+- ``MobinHandler`` is a tiny ``Defaultable``-conforming wrapper around
+  ``Router`` (the framework's ``Router`` is constructible with no args
+  but does not declare ``Defaultable``; the middleware ``Inner`` trait
+  bound requires it). It carries no logic of its own.
+- ``Router`` does method + path dispatch to the per-route handlers.
+
+Each per-route handler is a small ``Handler``-conforming struct that
+captures the slice of ``AppState`` it needs and opens its own SQLite
+connection per request. Path params are read via ``req.param("id")``;
+query parameters are read inside ``list_pastes_handler`` via
+``req.query_param``. Both reads are zero-allocation on the empty case.
 """
 
 from flare.prelude import *
-from flare.http import Handler
+from flare.http import (
+    CatchPanic,
+    Cors,
+    CorsConfig,
+    Handler,
+    Logger,
+    RequestId,
+)
 from sqlite import Database
 from .models import MobinConfig
 from .handlers import (
@@ -179,55 +198,83 @@ struct _DeletePasteHandler(Copyable, Handler, Movable):
         return delete_paste_handler(req, db, paste_id)
 
 
-# ── CORS preflight wrapper (transitional) ────────────────────────────────────
-#
-# Replaced wholesale by ``flare.Cors`` middleware in commit 6. Until then
-# we wrap the Router in a thin Handler that intercepts ``OPTIONS`` and
-# emits the preflight response the frontend expects (Allow-Origin: *,
-# the four mutating methods + OPTIONS, and the two custom headers we use).
+# ── Router shim — Defaultable wrapper around flare.Router ────────────────────
 
 
 @fieldwise_init
-struct MobinHandler(Copyable, Handler, Movable):
-    """``Handler`` wrapper that adds CORS preflight on top of a ``Router``.
+struct MobinHandler(Copyable, Defaultable, Handler, Movable):
+    """Tiny ``Defaultable``-conforming wrapper around ``Router``.
 
-    Implements the ``Handler`` trait so the ``HttpServer.serve`` entry
-    point + the ``Router``-as-Handler pattern compose cleanly: the
-    server calls into ``self.serve``, we short-circuit ``OPTIONS``,
-    and everything else delegates to the inner ``Router``. Commit 6
-    replaces this struct with a ``Cors(router, CorsConfig(...))``
-    middleware pipeline.
+    The four middleware structs (``Cors``, ``Logger``, ``RequestId``,
+    ``CatchPanic``) all parameterise their inner handler as
+    ``Inner: Handler & Copyable & Defaultable``. Plain ``flare.Router``
+    is constructible with no args but does not declare ``Defaultable``,
+    so wrapping it directly fails the trait bound. ``MobinHandler``
+    bridges the gap: it carries no logic of its own (its ``serve``
+    forwards straight to the inner router) and exists purely so the
+    middleware stack composes.
     """
 
     var inner: Router
 
+    def __init__(out self):
+        """Default-construct the inner router with no routes registered.
+
+        Required by the ``Defaultable`` trait; the production code path
+        always uses the ``@fieldwise_init`` constructor with a fully
+        populated router. The default-constructed shape is only there
+        to satisfy the trait bound on the middleware ``Inner`` slot.
+        """
+        self.inner = Router()
+
     def serve(self, req: Request) raises -> Response:
-        if req.method == Method.OPTIONS:
-            return _cors_preflight()
         return self.inner.serve(req)
 
 
-def _cors_preflight() raises -> Response:
-    """Build the canonical CORS preflight response (204 + Allow-* headers)."""
-    var r = Response(status=Status.NO_CONTENT, reason="")
-    r.headers.set("Access-Control-Allow-Origin", "*")
-    r.headers.set(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS",
-    )
-    r.headers.set(
-        "Access-Control-Allow-Headers", "Content-Type, X-Delete-Token"
-    )
-    return r^
+# ── Public middleware-wrapped handler type ───────────────────────────────────
+#
+# The full type spelling out the middleware chain. ``alias`` lets callers
+# (``main.mojo``, the unit tests) declare a single concrete return /
+# variable type rather than chasing the nested generic spelling.
+
+comptime MobinApp = CatchPanic[RequestId[Logger[Cors[MobinHandler]]]]
 
 
-# ── Router factory ───────────────────────────────────────────────────────────
+# ── CORS configuration ──────────────────────────────────────────────────────
 
 
-def build_router(state: AppState) raises -> MobinHandler:
-    """Build the mobin HTTP router with v0.7 ``Router`` + path params.
+def _cors_config() -> CorsConfig:
+    """Return the CORS policy for the mobin API.
 
-    Routes:
+    Wildcard origin (the API is intentionally public) + the four mutating
+    HTTP methods plus ``OPTIONS``. ``X-Delete-Token`` is whitelisted as a
+    custom request header so the frontend can send the per-paste delete
+    token without hitting the standard-header allowlist. Credentials are
+    off (``allow_credentials=False``) so the wildcard-origin shortcut
+    in ``Cors`` is honoured.
+    """
+    var cfg = CorsConfig()
+    cfg.allowed_origins.append("*")
+    cfg.allowed_methods = List[String]()
+    cfg.allowed_methods.append("GET")
+    cfg.allowed_methods.append("POST")
+    cfg.allowed_methods.append("PUT")
+    cfg.allowed_methods.append("DELETE")
+    cfg.allowed_methods.append("OPTIONS")
+    cfg.allowed_headers.append("Content-Type")
+    cfg.allowed_headers.append("X-Delete-Token")
+    cfg.max_age_seconds = 600
+    cfg.allow_credentials = False
+    return cfg^
+
+
+# ── Router factory + middleware stack ────────────────────────────────────────
+
+
+def build_router(state: AppState) raises -> MobinApp:
+    """Build the mobin handler chain (middleware + router + per-route handlers).
+
+    Routes registered:
 
     - ``GET    /``                    → embedded SPA shell
     - ``GET    /index.html``          → embedded SPA shell
@@ -238,15 +285,17 @@ def build_router(state: AppState) raises -> MobinHandler:
     - ``GET    /paste/:id``           → retrieve one paste (or SPA shell)
     - ``PUT    /paste/:id``           → update one paste (token required)
     - ``DELETE /paste/:id``           → delete one paste (token required)
-    - ``OPTIONS *``                   → CORS preflight (via ``MobinHandler``)
+
+    ``OPTIONS *`` preflight is handled by the ``Cors`` middleware in
+    front of the router; the router itself does not register any
+    ``OPTIONS`` routes.
 
     Args:
         state: The DB-path + config snapshot all per-route handlers share.
 
     Returns:
-        A ``MobinHandler`` that wraps an inner ``Router`` and adds CORS
-        preflight handling. The wrapper is itself a ``Handler``, so it
-        slots straight into ``HttpServer.serve(handler)``.
+        A ``MobinApp`` (``CatchPanic[RequestId[Logger[Cors[MobinHandler]]]]``)
+        ready to hand to ``HttpServer.serve``.
     """
     var r = Router()
     r.get("/", _IndexHandler())
@@ -264,4 +313,10 @@ def build_router(state: AppState) raises -> MobinHandler:
         _UpdatePasteHandler(db_path=state.db_path, cfg=state.cfg),
     )
     r.delete("/paste/:id", _DeletePasteHandler(db_path=state.db_path))
-    return MobinHandler(inner=r^)
+    var router_handler = MobinHandler(inner=r^)
+    var cors = Cors(inner=router_handler^, config=_cors_config())
+    var logger = Logger(inner=cors^, prefix="[mobin]")
+    var with_id = RequestId(inner=logger^)
+    return CatchPanic(
+        inner=with_id^, body='{"error":"internal server error"}'
+    )

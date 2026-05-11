@@ -5,7 +5,7 @@ Public re-exports for the mobin package:
 - ``init_db``, ``db_create``, ``db_check_token``, ``db_get``, ``db_list``,
   ``db_list_since``, ``db_delete``, ``db_update``, ``db_purge_expired``,
   ``db_stats``, ``db_inc_views`` from db
-- ``AppState``, ``MobinHandler``, ``build_router`` from router
+- ``AppState``, ``MobinApp``, ``MobinHandler``, ``build_router`` from router
 - ``feed_handler`` from feed
 """
 
@@ -23,5 +23,5 @@ from .db import (
     db_list_since,
     db_stats,
 )
-from .router import AppState, MobinHandler, build_router
+from .router import AppState, MobinApp, MobinHandler, build_router
 from .feed import feed_handler
