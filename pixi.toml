@@ -8,15 +8,21 @@ preview   = ["pixi-build"]
 
 # ── Backend Mojo dependencies ──────────────────────────────────────────────────
 [dependencies]
-mojo            = "==0.26.3.0.dev2026041305"
-flare           = { git = "https://github.com/ehsanmok/flare.git",  tag = "v0.1.0" }
-json            = { git = "https://github.com/ehsanmok/json.git",   tag = "v0.1.0" }
-morph           = { git = "https://github.com/ehsanmok/morph.git",  tag = "v0.1.0" }
-sqlite          = { git = "https://github.com/ehsanmok/sqlite.git", tag = "v0.1.0" }
-envo            = { git = "https://github.com/ehsanmok/envo.git",   tag = "v0.1.0" }
-uuid            = { git = "https://github.com/ehsanmok/uuid.git",   tag = "v0.1.0" }
-tempo           = { git = "https://github.com/ehsanmok/tempo.git",  tag = "v0.1.0" }
-pprint          = { git = "https://github.com/ehsanmok/pprint.git", tag = "v0.1.0" }
+mojo            = "==1.0.0b1"
+# NOTE: flare uses a local path dep until v0.7.1 ships with a recipe.yaml
+# whose ``run: mojo == ...`` pin matches the rest of the v0.1.2 ecosystem
+# (currently v0.7.0's recipe pins ``==1.0.0b1.dev2026042717`` while
+# json/morph/sqlite/tempo/uuid/envo/pprint pin ``==1.0.0b1`` clean — the
+# two strict pins cannot be co-satisfied by the conda solver). Once flare
+# publishes v0.7.1 with the recipe bump, swap this back to a git+tag dep.
+flare           = { path = "../flare" }
+json            = { git = "https://github.com/ehsanmok/json.git",   tag = "v0.1.6" }
+morph           = { git = "https://github.com/ehsanmok/morph.git",  tag = "v0.1.2" }
+sqlite          = { git = "https://github.com/ehsanmok/sqlite.git", tag = "v0.1.2" }
+envo            = { git = "https://github.com/ehsanmok/envo.git",   tag = "v0.1.2" }
+uuid            = { git = "https://github.com/ehsanmok/uuid.git",   tag = "v0.1.2" }
+tempo           = { git = "https://github.com/ehsanmok/tempo.git",  tag = "v0.1.2" }
+pprint          = { git = "https://github.com/ehsanmok/pprint.git", tag = "v0.1.2" }
 openssl         = ">=3.6.1,<4"
 ca-certificates = ">=2025.1.31"
 zlib            = ">=1.3.1,<2"
