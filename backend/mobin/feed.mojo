@@ -16,8 +16,8 @@ Usage in main.mojo:
 """
 
 from flare.ws import WsConnection, WsFrame
+from flare.utils import usleep
 from sqlite import Database
-from std.time import sleep
 from tempo import Timestamp
 from morph.json import write
 from .db import db_list_since, db_purge_expired
@@ -60,8 +60,13 @@ def feed_handler(conn: WsConnection, db: Database) raises:
             last_seen = new_pastes[len(new_pastes) - 1].created_at
 
         # Short poll interval: keeps latency low and lets disconnection
-        # detection happen quickly.
-        sleep(Float64(0.5))
+        # detection happen quickly. ``flare.utils.usleep`` is used instead
+        # of ``std.time.sleep`` because the latter declares ``nanosleep``
+        # with a stdlib signature that conflicts with flare's own
+        # ``nanosleep`` declaration in ``flare.runtime._libc_time`` —
+        # importing both into the same compilation unit fails to lower
+        # to LLVM IR ("existing function with conflicting signature").
+        usleep(500_000)
 
         # PING heartbeat — raises NetworkError if the client disconnected
         # during the sleep, which exits this loop and unblocks the server's
