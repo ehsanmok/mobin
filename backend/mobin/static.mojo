@@ -3,17 +3,14 @@
 Embeds the frontend HTML so the backend can serve it standalone
 (without a separate nginx container). In production Docker Compose,
 nginx serves the same file from frontend/src/index.html.
+
+Builds the response via ``flare.prelude.ok`` which performs the
+``String -> List[UInt8]`` body copy + ``Content-Type`` header itself,
+then upgrades the content type to ``text/html`` (``ok`` defaults to
+``text/plain``).
 """
 
-from flare.http import Request, Response, Status
-
-
-def _to_bytes(s: String) -> List[UInt8]:
-    var b = s.as_bytes()
-    var out = List[UInt8](capacity=len(b))
-    for c in b:
-        out.append(c)
-    return out^
+from flare.prelude import *
 
 
 # Minimal inline HTML that loads the full UI.
@@ -381,10 +378,6 @@ def serve_index() raises -> Response:
     Returns:
         200 OK with the full frontend HTML page.
     """
-    var r = Response(
-        status=Status.OK,
-        reason="OK",
-        body=_to_bytes(_INDEX_HTML),
-    )
+    var r = ok(_INDEX_HTML)
     r.headers.set("Content-Type", "text/html; charset=utf-8")
     return r^

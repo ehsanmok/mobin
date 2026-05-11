@@ -3,9 +3,15 @@
 Each handler corresponds to one API endpoint. Handlers read from the Request,
 interact with the database, and return a Response. JSON bodies use morph for
 struct serialization/deserialization.
+
+Builds on the v0.7 ``flare.prelude`` surface — every response goes through
+``ok`` / ``ok_json`` / ``bad_request`` / ``not_found`` / ``internal_error``;
+no per-handler ``Content-Type`` plumbing or hand-rolled byte-list builders
+remain. CORS headers are added by the ``Cors`` middleware in ``main.mojo``,
+so handler bodies stay focused on application logic.
 """
 
-from flare.http import Request, Response, Status
+from flare.prelude import *
 from sqlite import Database
 from morph.json import write, read
 from uuid import uuid4
@@ -34,7 +40,7 @@ struct CreateRequest(Defaultable, Movable):
         title:    Optional title (defaults to 'Untitled').
         content:  Paste body text or code (required).
         language: Syntax highlight hint (defaults to 'plain').
-        ttl_secs: Expiry in seconds (defaults to 604800 = 7 days,
+        ttl_secs: Expiry in seconds (defaults to 3600 = 1 hour,
                   max 2592000 = 30 days).
     """
 
@@ -47,7 +53,7 @@ struct CreateRequest(Defaultable, Movable):
         self.title = ""
         self.content = ""
         self.language = "plain"
-        self.ttl_secs = 3600  # 1 hour
+        self.ttl_secs = 3600
 
 
 @fieldwise_init
@@ -78,81 +84,16 @@ struct UpdateRequest(Defaultable, Movable):
         self.ttl_secs = 0
 
 
-# ── Response helpers ──────────────────────────────────────────────────────────
-
-
-def _to_bytes(s: String) -> List[UInt8]:
-    """Convert a String to a List[UInt8] for use as a Response body.
-
-    Uses byte_length() explicitly to exclude the null terminator that
-    String.as_bytes() includes in its underlying buffer.
-
-    Args:
-        s: String to convert.
-
-    Returns:
-        Byte list copy of the string's UTF-8 encoding (no null terminator).
-    """
-    var n = s.byte_length()
-    var b = s.as_bytes()
-    var out = List[UInt8](capacity=n)
-    for i in range(n):
-        out.append(b[i])
-    return out^
-
-
-def json_response(status: Int, body: String) raises -> Response:
-    """Build a JSON Response with CORS headers.
-
-    Args:
-        status: HTTP status code.
-        body:   JSON string body.
-
-    Returns:
-        A Response with Content-Type: application/json and CORS headers.
-    """
-    var r = Response(status=status, reason="", body=_to_bytes(body))
-    r.headers.set("Content-Type", "application/json; charset=utf-8")
-    r.headers.set("Access-Control-Allow-Origin", "*")
-    r.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-    r.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Delete-Token")
-    return r^
-
-
-def error_response(status: Int, msg: String) raises -> Response:
-    """Build a JSON error Response.
-
-    Args:
-        status: HTTP error status code.
-        msg:    Human-readable error message.
-
-    Returns:
-        A Response with body {"error": "<msg>"}.
-    """
-    return json_response(status, '{"error":"' + msg + '"}')
+# ── JSON serialisation helpers ───────────────────────────────────────────────
 
 
 def _paste_to_json(paste: Paste) raises -> String:
-    """Serialize a Paste struct to a JSON string via morph.
-
-    Args:
-        paste: The Paste to serialize.
-
-    Returns:
-        JSON string representation of the paste.
-    """
+    """Serialise a Paste struct to a JSON string via morph."""
     return write(paste)
 
 
 def _pastes_to_json_array(pastes: List[Paste]) raises -> String:
-    """Serialize a list of Paste structs to a JSON array string.
-
-    Args:
-        pastes: List of Paste objects to serialize.
-
-    Returns:
-        JSON array string, e.g. '[{"id":"..."},...]'.
-    """
+    """Serialise a list of Paste structs to a JSON array string."""
     var out = String("[")
     for i in range(len(pastes)):
         if i > 0:
@@ -172,9 +113,9 @@ def health_handler(req: Request) raises -> Response:
         req: Incoming HTTP request (unused).
 
     Returns:
-        200 OK with {"status":"ok"}.
+        200 OK with ``{"status":"ok"}``.
     """
-    return json_response(Status.OK, '{"status":"ok"}')
+    return ok_json('{"status":"ok"}')
 
 
 def create_paste_handler(
@@ -183,7 +124,8 @@ def create_paste_handler(
     """Handle POST /paste — create a new paste.
 
     Reads CreateRequest JSON from the request body, validates size,
-    creates a Paste, inserts into the database, and returns the new ID.
+    creates a Paste, inserts into the database, and returns the new paste
+    plus a one-time delete_token.
 
     Args:
         req: HTTP request with JSON body.
@@ -192,10 +134,10 @@ def create_paste_handler(
 
     Returns:
         200 OK with the full paste JSON object,
-        or an error response on validation failure.
+        or a 4xx error response on validation failure.
     """
     if len(req.body) == 0:
-        return error_response(Status.BAD_REQUEST, "request body is required")
+        return bad_request("request body is required")
 
     # from_utf8_lossy replaces invalid UTF-8 bytes with U+FFFD rather than
     # crashing; the JSON parser will reject structurally invalid input anyway.
@@ -205,21 +147,24 @@ def create_paste_handler(
     try:
         cr = read[CreateRequest, default_if_missing=True](body)
     except e:
-        return error_response(Status.BAD_REQUEST, "invalid JSON: " + String(e))
+        return bad_request("invalid JSON: " + String(e))
 
     if cr.content.byte_length() == 0:
-        return error_response(Status.BAD_REQUEST, "content is required")
+        return bad_request("content is required")
     if cr.content.byte_length() > cfg.max_size:
-        return error_response(Status.CONTENT_TOO_LARGE, "content too large")
+        var resp = Response(
+            status=Status.CONTENT_TOO_LARGE,
+            reason="Content Too Large",
+        )
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
     # Reject null bytes — they are legal in JSON (\u0000) but cause silent
     # truncation in downstream C string handling and most text editors.
     var content_bytes = cr.content.as_bytes()
     for i in range(cr.content.byte_length()):
         if content_bytes[i] == 0:
-            return error_response(
-                Status.BAD_REQUEST, "content must not contain null bytes"
-            )
+            return bad_request("content must not contain null bytes")
 
     # Default to server config (in days → seconds); cap at 30 days.
     comptime _MAX_TTL_SECS = 30 * 86400
@@ -235,12 +180,15 @@ def create_paste_handler(
     # Append delete_token to the response JSON. It is intentionally omitted
     # from GET/LIST responses so it is only ever visible to the creator.
     var paste_json = _paste_to_json(paste)
-    # Strip the trailing "}" and inject the delete_token field.
     var response_json = (
-        String(from_utf8_lossy=paste_json[byte=: paste_json.byte_length() - 1].as_bytes())
-        + ',"delete_token":"' + delete_token + '"}'
+        String(
+            from_utf8_lossy=paste_json[byte=: paste_json.byte_length() - 1].as_bytes()
+        )
+        + ',"delete_token":"'
+        + delete_token
+        + '"}'
     )
-    return json_response(Status.OK, response_json)
+    return ok_json(response_json)
 
 
 def get_paste_handler(
@@ -260,11 +208,11 @@ def get_paste_handler(
     """
     var paste_opt = db_get(db, paste_id)
     if not paste_opt:
-        return error_response(Status.NOT_FOUND, "paste not found")
+        return not_found("paste " + paste_id)
     var paste = paste_opt.take()
     db_inc_views(db, paste_id)
     paste.views += 1
-    return json_response(Status.OK, _paste_to_json(paste))
+    return ok_json(_paste_to_json(paste))
 
 
 def delete_paste_handler(
@@ -273,9 +221,7 @@ def delete_paste_handler(
     """Handle DELETE /paste/{id} — remove a paste.
 
     Requires the ``X-Delete-Token`` header containing the token that was
-    returned when the paste was created. Returns 401 if the header is
-    missing, 403 if the token is present but incorrect, 404 if the paste
-    does not exist.
+    returned when the paste was created.
 
     Args:
         req:      HTTP request — must carry X-Delete-Token header.
@@ -283,21 +229,25 @@ def delete_paste_handler(
         paste_id: UUID string of the paste to delete.
 
     Returns:
-        200 OK on success, or an appropriate error response.
+        200 OK on success; 401 missing token, 403 wrong token, 404 missing.
     """
     var token = req.headers.get("X-Delete-Token")
     if token == "":
-        return error_response(Status.UNAUTHORIZED, "X-Delete-Token header required")
+        var resp = Response(status=Status.UNAUTHORIZED, reason="Unauthorized")
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
     var paste_opt = db_get(db, paste_id)
     if not paste_opt:
-        return error_response(Status.NOT_FOUND, "paste not found")
+        return not_found("paste " + paste_id)
 
     if not db_check_token(db, paste_id, token):
-        return error_response(Status.FORBIDDEN, "invalid delete token")
+        var resp = Response(status=Status.FORBIDDEN, reason="Forbidden")
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
     db_delete(db, paste_id)
-    return json_response(Status.OK, '{"deleted":true}')
+    return ok_json('{"deleted":true}')
 
 
 def update_paste_handler(
@@ -306,7 +256,7 @@ def update_paste_handler(
     """Handle PUT /paste/{id} — update an existing paste.
 
     Requires the ``X-Delete-Token`` header (the same token returned at
-    creation time).  All body fields are optional; omitted or empty-string
+    creation time). All body fields are optional; omitted or empty-string
     fields preserve the current value.
 
     Args:
@@ -316,62 +266,73 @@ def update_paste_handler(
         paste_id: UUID string of the paste to update.
 
     Returns:
-        200 OK with the updated Paste JSON, or an error response.
+        200 OK with the updated Paste JSON, or a 4xx/5xx error response.
     """
     var token = req.headers.get("X-Delete-Token")
     if token == "":
-        return error_response(Status.UNAUTHORIZED, "X-Delete-Token header required")
+        var resp = Response(status=Status.UNAUTHORIZED, reason="Unauthorized")
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
     var paste_opt = db_get(db, paste_id)
     if not paste_opt:
-        return error_response(Status.NOT_FOUND, "paste not found")
+        return not_found("paste " + paste_id)
 
     if not db_check_token(db, paste_id, token):
-        return error_response(Status.FORBIDDEN, "invalid delete token")
+        var resp = Response(status=Status.FORBIDDEN, reason="Forbidden")
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
     var current = paste_opt.take()
 
     if len(req.body) == 0:
-        return error_response(Status.BAD_REQUEST, "request body is required")
+        return bad_request("request body is required")
 
     var body = String(from_utf8_lossy=req.body)
     var ur: UpdateRequest
     try:
         ur = read[UpdateRequest, default_if_missing=True](body)
     except e:
-        return error_response(Status.BAD_REQUEST, "invalid JSON: " + String(e))
+        return bad_request("invalid JSON: " + String(e))
 
-    # Merge: keep current value for any field omitted (empty string) by the caller.
     var new_title = ur.title if ur.title.byte_length() > 0 else current.title
-    var new_content = ur.content if ur.content.byte_length() > 0 else current.content
-    var new_language = ur.language if ur.language.byte_length() > 0 else current.language
+    var new_content = (
+        ur.content if ur.content.byte_length() > 0 else current.content
+    )
+    var new_language = (
+        ur.language if ur.language.byte_length() > 0 else current.language
+    )
 
     if new_content.byte_length() == 0:
-        return error_response(Status.BAD_REQUEST, "content cannot be empty")
+        return bad_request("content cannot be empty")
     if new_content.byte_length() > cfg.max_size:
-        return error_response(Status.CONTENT_TOO_LARGE, "content too large")
+        var resp = Response(
+            status=Status.CONTENT_TOO_LARGE,
+            reason="Content Too Large",
+        )
+        resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+        return resp^
 
-    # Reject null bytes in the new content.
     var content_bytes = new_content.as_bytes()
     for i in range(new_content.byte_length()):
         if content_bytes[i] == 0:
-            return error_response(
-                Status.BAD_REQUEST, "content must not contain null bytes"
-            )
+            return bad_request("content must not contain null bytes")
 
-    # Recompute expiry if caller explicitly requested a new TTL.
     comptime _MAX_TTL_SECS = 30 * 86400
     var new_expires_at = current.expires_at
     if ur.ttl_secs > 0:
-        new_expires_at = Int(Timestamp.now().unix_secs()) + min(ur.ttl_secs, _MAX_TTL_SECS)
+        new_expires_at = Int(Timestamp.now().unix_secs()) + min(
+            ur.ttl_secs, _MAX_TTL_SECS
+        )
 
-    db_update(db, paste_id, new_title, new_content, new_language, new_expires_at)
+    db_update(
+        db, paste_id, new_title, new_content, new_language, new_expires_at
+    )
 
-    # Re-fetch the updated paste so the response reflects the DB state.
     var updated_opt = db_get(db, paste_id)
     if not updated_opt:
-        return error_response(500, "failed to retrieve updated paste")
-    return json_response(Status.OK, _paste_to_json(updated_opt.take()))
+        return internal_error("failed to retrieve updated paste")
+    return ok_json(_paste_to_json(updated_opt.take()))
 
 
 def list_pastes_handler(
@@ -384,18 +345,17 @@ def list_pastes_handler(
         offset:    Offset-based pagination offset (default 0).
                    Ignored when ``before`` is provided.
         before:    Keyset cursor — return only pastes older than this Unix
-                   timestamp. Stable under concurrent inserts; preferred over
-                   ``offset`` for production use.
+                   timestamp.
         q:         Substring search filter applied to title and content.
 
     Args:
         req:   HTTP request (unused beyond routing).
         db:    Open database connection.
-        query: URL query string, e.g. "limit=20&offset=0&q=python".
+        query: URL query string.
 
     Returns:
-        200 OK with {"pastes":[...],"count":<n>} and optionally
-        "next_before":<unix_ts> for keyset pagination continuation.
+        200 OK with ``{"pastes":[...],"count":<n>}`` and optionally
+        ``"next_before":<unix_ts>`` for keyset pagination continuation.
     """
     var limit = _parse_query_int(query, "limit", 20)
     var offset = _parse_query_int(query, "offset", 0)
@@ -407,13 +367,11 @@ def list_pastes_handler(
     var n = len(pastes)
     var body = '{"pastes":' + arr + ',"count":' + String(n)
 
-    # When using keyset pagination, include the cursor for the next page.
-    # Absence of "next_before" signals that no more pages exist.
     if before_ts > 0 and n == min(limit, 100):
         body += ',"next_before":' + String(pastes[n - 1].created_at)
 
     body += "}"
-    return json_response(Status.OK, body)
+    return ok_json(body)
 
 
 def stats_handler(req: Request, db: Database) raises -> Response:
@@ -424,7 +382,7 @@ def stats_handler(req: Request, db: Database) raises -> Response:
         db:  Open database connection.
 
     Returns:
-        200 OK with {"total":<n>,"today":<n>,"total_views":<n>}.
+        200 OK with ``{"total":<n>,"today":<n>,"total_views":<n>}``.
     """
     var stats = db_stats(db)
     var body = (
@@ -436,23 +394,14 @@ def stats_handler(req: Request, db: Database) raises -> Response:
         + String(stats.total_views)
         + "}"
     )
-    return json_response(Status.OK, body)
+    return ok_json(body)
 
 
 # ── Query string helpers ──────────────────────────────────────────────────────
 
 
 def _parse_query_int(query: String, key: String, default_val: Int) -> Int:
-    """Extract an integer value from a URL query string.
-
-    Args:
-        query:       Raw query string, e.g. "limit=20&offset=0".
-        key:         Parameter name to look up.
-        default_val: Value to return if the key is missing or invalid.
-
-    Returns:
-        Parsed integer value or default_val on missing/invalid input.
-    """
+    """Extract an integer value from a URL query string."""
     var search = key + "="
     var idx = query.find(search)
     if idx < 0:
@@ -471,16 +420,7 @@ def _parse_query_int(query: String, key: String, default_val: Int) -> Int:
 
 
 def _parse_query_str(query: String, key: String) -> String:
-    """Extract a string value from a URL query string.
-
-    Args:
-        query: Raw query string, e.g. "limit=20&q=hello+world".
-        key:   Parameter name to look up.
-
-    Returns:
-        Raw (not URL-decoded) string value, or "" if the key is missing.
-        Callers that need URL decoding should handle it themselves.
-    """
+    """Extract a string value from a URL query string."""
     var search = key + "="
     var idx = query.find(search)
     if idx < 0:

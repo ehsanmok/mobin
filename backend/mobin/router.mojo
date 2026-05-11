@@ -2,9 +2,15 @@
 
 Routes incoming HTTP requests to their appropriate handler based on method
 and URL path. Also handles CORS preflight OPTIONS requests.
+
+This is the v0.1-shape hand-rolled dispatcher kept transitional in v0.7.x:
+the next refactor (Commit 5) replaces it with a ``flare.Router`` declared
+via ``r.get / r.post / r.put / r.delete`` and routes via ``:id`` path
+parameters. CORS preflight will move to the ``flare.Cors`` middleware in
+Commit 6.
 """
 
-from flare.http import Request, Response, Status, Method
+from flare.prelude import *
 from sqlite import Database
 from .models import MobinConfig
 from .handlers import (
@@ -15,8 +21,6 @@ from .handlers import (
     delete_paste_handler,
     list_pastes_handler,
     stats_handler,
-    error_response,
-    json_response,
 )
 from .static import serve_index
 
@@ -25,7 +29,7 @@ def _parse_path_query(url: String) -> Tuple[String, String]:
     """Split a URL into path and query components.
 
     Args:
-        url: Raw URL string, e.g. "/pastes?limit=20&offset=0".
+        url: Raw URL string, e.g. ``"/pastes?limit=20&offset=0"``.
 
     Returns:
         Tuple of (path, query) where query is "" if absent.
@@ -39,9 +43,22 @@ def _parse_path_query(url: String) -> Tuple[String, String]:
     )
 
 
-def router(
-    req: Request, db: Database, cfg: MobinConfig
-) raises -> Response:
+def _method_not_allowed() raises -> Response:
+    """Return a 405 Method Not Allowed response with text/plain body."""
+    var resp = Response(
+        status=Status.METHOD_NOT_ALLOWED,
+        reason="Method Not Allowed",
+    )
+    resp.headers.set("Content-Type", "text/plain; charset=utf-8")
+    return resp^
+
+
+def _bad_request_id() raises -> Response:
+    """Return a 400 Bad Request for the missing-paste-id case."""
+    return bad_request("missing paste id")
+
+
+def router(req: Request, db: Database, cfg: MobinConfig) raises -> Response:
     """Central HTTP request router.
 
     Dispatches to the appropriate handler based on HTTP method and URL path.
@@ -52,7 +69,7 @@ def router(
         GET    /              → serve embedded frontend HTML
         GET    /health        → liveness probe
         GET    /stats         → aggregate statistics
-        GET    /pastes        → paginated paste list (supports ?q= search, ?before= keyset)
+        GET    /pastes        → paginated paste list
         POST   /paste         → create a new paste
         GET    /paste/{id}    → retrieve a paste (increments views)
         PUT    /paste/{id}    → update a paste (requires X-Delete-Token)
@@ -74,14 +91,18 @@ def router(
     var path = pq[0]
     var query = pq[1]
 
-    # CORS preflight
+    # CORS preflight — kept transitional until ``flare.Cors`` middleware
+    # takes over in Commit 6.
     if req.method == Method.OPTIONS:
         var r = Response(status=Status.NO_CONTENT, reason="")
         r.headers.set("Access-Control-Allow-Origin", "*")
         r.headers.set(
-            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+            "Access-Control-Allow-Methods",
+            "GET, POST, PUT, DELETE, OPTIONS",
         )
-        r.headers.set("Access-Control-Allow-Headers", "Content-Type, X-Delete-Token")
+        r.headers.set(
+            "Access-Control-Allow-Headers", "Content-Type, X-Delete-Token"
+        )
         return r^
 
     # Static / frontend
@@ -96,26 +117,28 @@ def router(
     if path == "/stats":
         if req.method == Method.GET:
             return stats_handler(req, db)
-        return error_response(Status.METHOD_NOT_ALLOWED, "method not allowed")
+        return _method_not_allowed()
 
     # Paste list
     if path == "/pastes":
         if req.method == Method.GET:
             return list_pastes_handler(req, db, query)
-        return error_response(Status.METHOD_NOT_ALLOWED, "method not allowed")
+        return _method_not_allowed()
 
     # Create paste
     if path == "/paste":
         if req.method == Method.POST:
             return create_paste_handler(req, db, cfg)
-        return error_response(Status.METHOD_NOT_ALLOWED, "method not allowed")
+        return _method_not_allowed()
 
     # Paste by ID: /paste/<uuid>
     comptime _PREFIX: String = "/paste/"
     if path.startswith(_PREFIX):
-        var paste_id = String(from_utf8_lossy=path.removeprefix(_PREFIX).as_bytes())
+        var paste_id = String(
+            from_utf8_lossy=path.removeprefix(_PREFIX).as_bytes()
+        )
         if paste_id.byte_length() == 0:
-            return error_response(Status.BAD_REQUEST, "missing paste id")
+            return _bad_request_id()
         if req.method == Method.GET:
             var accept = req.headers.get("Accept")
             if accept.find("text/html") >= 0:
@@ -125,6 +148,6 @@ def router(
             return update_paste_handler(req, db, cfg, paste_id)
         if req.method == Method.DELETE:
             return delete_paste_handler(req, db, paste_id)
-        return error_response(Status.METHOD_NOT_ALLOWED, "method not allowed")
+        return _method_not_allowed()
 
-    return error_response(Status.NOT_FOUND, "not found: " + path)
+    return not_found(path)
