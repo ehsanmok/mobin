@@ -9,13 +9,7 @@ preview   = ["pixi-build"]
 # ── Backend Mojo dependencies ──────────────────────────────────────────────────
 [dependencies]
 mojo            = "==1.0.0b1"
-# NOTE: flare uses a local path dep until v0.7.1 ships with a recipe.yaml
-# whose ``run: mojo == ...`` pin matches the rest of the v0.1.2 ecosystem
-# (currently v0.7.0's recipe pins ``==1.0.0b1.dev2026042717`` while
-# json/morph/sqlite/tempo/uuid/envo/pprint pin ``==1.0.0b1`` clean — the
-# two strict pins cannot be co-satisfied by the conda solver). Once flare
-# publishes v0.7.1 with the recipe bump, swap this back to a git+tag dep.
-flare           = { path = "../flare" }
+flare           = { git = "https://github.com/ehsanmok/flare.git",  tag = "v0.7.0" }
 json            = { git = "https://github.com/ehsanmok/json.git",   tag = "v0.1.6" }
 morph           = { git = "https://github.com/ehsanmok/morph.git",  tag = "v0.1.2" }
 sqlite          = { git = "https://github.com/ehsanmok/sqlite.git", tag = "v0.1.2" }
