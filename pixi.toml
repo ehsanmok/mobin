@@ -70,9 +70,15 @@ test-router = { cmd = "mojo $MOJO_FLAGS tests/test_router.mojo", cwd = "backend"
 cmd = "python3 -m http.server 3001"
 cwd = "frontend/src"
 
-# ── Linux overrides (requires explicit -ldl for dlopen/dlsym) ─────────────────
+# ── Linux overrides ────────────────────────────────────────────────────────────
+# -ldl     : libdl for dlopen/dlsym (flare loads its FFI bridges at runtime)
+# -lpthread: libpthread for flare v0.7's multi-worker reactor
+#            (HttpServer.serve(handler, num_workers=N) spawns workers via
+#             pthread_create + pthread_setaffinity_np + pthread_join). macOS
+#            picks these up implicitly via libSystem; Linux's gcc toolchain
+#            requires the explicit link flag.
 [target.linux-64.tasks]
-build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl", cwd = "backend" }
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread", cwd = "backend" }
 
 [target.linux-aarch64.tasks]
-build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl", cwd = "backend" }
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread", cwd = "backend" }
