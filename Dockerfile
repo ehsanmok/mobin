@@ -20,36 +20,15 @@ RUN pixi install
 # That keeps the Linux link recipe in one place and prevents silent drift if the
 # linker flag chain changes.
 
-# ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
-# flare.mojopkg and json.mojopkg are shipped as pre-compiled conda artifacts
-# (pixi-build). Their MLIR bytecode may not match the runtime Mojo compiler
-# even when version strings are identical (nightly builds can change internal
-# MLIR format without bumping the semver).
-#
-# Root-cause analysis (from `conda-meta/*.json`):
-#   flare.mojopkg  ← flare conda package   → recompile from source
-#   json.mojopkg   ← json conda package    → recompile from source
-#   buffer.mojopkg ← mojo-compiler package → already compatible, leave alone
-#   morph/, sqlite/, envo/, uuid/, tempo/, pprint/ → source dirs, no issue
-#
-# Solution: use `mojo package` with the runtime compiler on the exact commits
-# pinned in pixi.lock to produce compatible bytecode.
-RUN set -e; \
-    PKGDIR=/app/.pixi/envs/default/lib/mojo; \
-    \
-    echo "=== Recompiling json.mojopkg (compile first; flare imports it) ==="; \
-    git clone --depth 1 --no-tags https://github.com/ehsanmok/json.git /tmp/json-src; \
-    git -C /tmp/json-src fetch --depth 1 origin 8f1b68db27e1ce82e5891ee74f4cf39eb6bae875; \
-    git -C /tmp/json-src checkout FETCH_HEAD; \
-    pixi run -- mojo package /tmp/json-src/json -o $PKGDIR/json.mojopkg && echo "    json OK"; \
-    \
-    echo "=== Recompiling flare.mojopkg ==="; \
-    git clone --depth 1 --no-tags https://github.com/ehsanmok/flare.git /tmp/flare-src; \
-    git -C /tmp/flare-src fetch --depth 1 origin 5e7965dc87e62d20099744b479b1a0cd10896ad0; \
-    git -C /tmp/flare-src checkout FETCH_HEAD; \
-    pixi run -- mojo package /tmp/flare-src/flare -o $PKGDIR/flare.mojopkg && echo "    flare OK"; \
-    \
-    rm -rf /tmp/json-src /tmp/flare-src
+# Note: there is intentionally no `mojo package` recompile step. Earlier nightly
+# Mojo builds could ship MLIR-bytecode-incompatible `.mojopkg` artifacts even
+# when their version strings matched the runtime compiler, so a defensive
+# rebuild-from-source step lived here. With mojo pinned to the stable
+# ``==1.0.0b1`` beta and every dep's ``recipe.yaml`` pinning the same compiler
+# version, the artifacts pixi-build produces are bytecode-compatible with the
+# runtime compiler by construction. Reintroducing such a step would also
+# contradict ``docs/package-management.md`` which documents the workflow as
+# pixi-build / rattler-build only, with no ``mojo package`` step.
 
 COPY backend/  ./backend/
 COPY frontend/ ./frontend/
