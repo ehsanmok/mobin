@@ -71,14 +71,27 @@ cmd = "python3 -m http.server 3001"
 cwd = "frontend/src"
 
 # ── Linux overrides ────────────────────────────────────────────────────────────
-# -ldl     : libdl for dlopen/dlsym (flare loads its FFI bridges at runtime)
-# -lpthread: libpthread for flare v0.7's multi-worker reactor
-#            (HttpServer.serve(handler, num_workers=N) spawns workers via
-#             pthread_create + pthread_setaffinity_np + pthread_join). macOS
-#            picks these up implicitly via libSystem; Linux's gcc toolchain
-#            requires the explicit link flag.
+# -ldl                    : libdl for dlopen/dlsym (flare loads its FFI bridges
+#                           at runtime). macOS picks this up via libSystem.
+# -lpthread               : libpthread for flare v0.7's multi-worker reactor —
+#                           HttpServer.serve(handler, num_workers=N) spawns
+#                           workers via pthread_create + pthread_setaffinity_np
+#                           + pthread_join. macOS picks this up via libSystem.
+# --allow-shlib-undefined : Mojo runtime .so files (libNVPTX, libAsyncRT*,
+#                           libMSupportGlobals, libKGENCompilerRTShared) reference
+#                           versioned glibc symbols up to @GLIBC_2.34. The
+#                           conda gcc-toolchain in the pixi env ships a sysroot
+#                           with older glibc stubs (≤ 2.17), so the static link
+#                           fails resolving those references. This flag tells
+#                           the linker to defer those *shared-lib* dependency
+#                           checks to runtime, where the host glibc (≥ 2.34 on
+#                           the Fly.io Ubuntu Noble runtime image) resolves
+#                           them correctly. Safe because (a) the unresolved refs
+#                           are all in Mojo runtime .so files, not user code,
+#                           and (b) those .so files were built against a glibc
+#                           that has the symbols.
 [target.linux-64.tasks]
-build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread", cwd = "backend" }
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread -Xlinker --allow-shlib-undefined", cwd = "backend" }
 
 [target.linux-aarch64.tasks]
-build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread", cwd = "backend" }
+build = { cmd = "mojo build $MOJO_FLAGS main.mojo -o mobin-backend -Xlinker -ldl -Xlinker -lpthread -Xlinker --allow-shlib-undefined", cwd = "backend" }

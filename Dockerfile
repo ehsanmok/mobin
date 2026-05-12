@@ -15,38 +15,10 @@ WORKDIR /app
 COPY pixi.toml pixi.lock* ./
 RUN pixi install
 
-# ── Augment conda sysroot glibc stubs ─────────────────────────────────────────
-# The conda cross-compiler sysroot ships glibc stubs that only declare symbols
-# up to GLIBC_2.17.  Mojo runtime libs require versioned symbols up to
-# GLIBC_2.34.  We compile a thin shared-library "shim" that re-exports the
-# missing versioned symbols as weak aliases of the real functions (available
-# via the system's RUNPATH), then inject it into the pixi environment's lib dir
-# so the conda linker finds it before the sysroot stubs.
-#
-# IMPORTANT: do NOT replace the sysroot's libc.so.6 with the real system lib –
-# the real lib carries GLIBC_PRIVATE internal symbols that the sysroot linker
-# will then try to resolve, causing a new cascade of errors.
-#
-# Instead we use --allow-shlib-undefined: the conda linker keeps the sysroot
-# stubs (for standard symbols), but treats any remaining undefined versioned
-# symbol in a shared-lib dependency as OK.  At runtime the system's glibc
-# (GLIBC_2.39 on Ubuntu Noble) resolves everything correctly.
-# This flag is safe here because the unresolved references are all in
-# *Mojo runtime shared libs* (not in user code), and those libs were built
-# against glibc ≥ 2.34.
-RUN set -e; \
-    echo "=== Adding --allow-shlib-undefined to pixi build task ==="; \
-    PIXI_TOML=/app/pixi.toml; \
-    # Check whether the flag is already present (idempotent)
-    if grep -q "allow-shlib-undefined" "$PIXI_TOML"; then \
-        echo "  already present — skipping"; \
-    elif grep -q 'build.*=.*{.*cmd.*mojo build' "$PIXI_TOML"; then \
-        # Append the flag to the existing -Xlinker chain in the build command
-        sed -i 's/-Xlinker -ldl"/-Xlinker -ldl -Xlinker --allow-shlib-undefined"/' "$PIXI_TOML" && \
-        echo "  appended to pixi.toml build cmd"; \
-    else \
-        echo "  WARNING: build task not found in pixi.toml — check manually"; \
-    fi
+# Note: glibc symbol mismatch handling lives in pixi.toml's [target.linux-*.tasks]
+# build commands (`-Xlinker --allow-shlib-undefined`), not as a Dockerfile shim.
+# That keeps the Linux link recipe in one place and prevents silent drift if the
+# linker flag chain changes.
 
 # ── Fix MLIR bytecode incompatibility ─────────────────────────────────────────
 # flare.mojopkg and json.mojopkg are shipped as pre-compiled conda artifacts
